@@ -46,7 +46,7 @@ $('rail-motion').addEventListener('click', () => openPane('motion'));
 $('rail-dress').addEventListener('click', () => openPane('dress'));
 const closePanes = () => { for (const k in panes) { panes[k].hidden = true; $('rail-' + k).setAttribute('aria-expanded', 'false'); } };
 $('c').addEventListener('pointerdown', closePanes);
-document.querySelectorAll('[data-motion]').forEach((b) => b.addEventListener('click', () => { sound(true); S.act(b.dataset.motion); closePanes(); }));
+document.querySelectorAll('[data-motion]').forEach((b) => b.addEventListener('click', () => { sound(true); closePanes(); if (b.dataset.motion === 'tteok') return grillTteok(); S.act(b.dataset.motion); }));
 // 동작 소리: 동작의 시간표(cue)에 맞춰 울린다
 S.onCue = (name) => {
   if (name === 'page') audio.page(); else if (name === 'gull') audio.gull(); else sfx[name]?.();
@@ -151,10 +151,71 @@ const KIND_KEY = 'padoseojae.kind', KIND_ORDER = ['seal', 'bear', 'bunny'];
 function setKind(k, quiet) { const name = S.setKind(k); try { localStorage.setItem(KIND_KEY, k); } catch { /* */ } $('act-kind').querySelector('span').textContent = name; if (!quiet) { sfx.cloth(); S.act('hello'); } }
 try { setKind(localStorage.getItem(KIND_KEY) || 'seal', true); } catch { setKind('seal', true); }
 $('act-kind').addEventListener('click', () => { const i = KIND_ORDER.indexOf(S.kind); setKind(KIND_ORDER[(i + 1) % KIND_ORDER.length]); });
+// ----- S11 해님·달님: 낮 ↔ 밤 -----
+function syncDayNight() { const nightNow = S.night > 0.5; const b = $('act-daynight'); b.setAttribute('aria-pressed', String(nightNow)); b.querySelector('i').textContent = nightNow ? '☀️' : '🌙'; b.querySelector('span').textContent = nightNow ? '낮으로' : '밤으로'; $('act-fire').hidden = !(S.night > 0.3); if (S.night <= 0.3 && S.fireOn) setFire(false); }
+$('act-daynight').addEventListener('click', () => { sound(true); closePanes(); const toNight = S.night < 0.5; S.setNightTarget(toNight ? 1 : 0); sfx.twinkle(); tip(toNight ? '해가 바다 뒤로 넘어가요…' : '다시 해가 떠요', 3500); });
+setInterval(syncDayNight, 400);
+// ----- S11 모닥불 (밤에만) + 타닥타닥 -----
+function setFire(on) { const ok = S.setFire(on); $('act-fire').setAttribute('aria-pressed', String(ok)); if (ok) { sfx.fireOn(); } else sfx.fireOff(); return ok; }
+$('act-fire').addEventListener('click', async () => { await sound(true); closePanes(); const on = !S.fireOn; if (on && !setFire(true)) return tip('모닥불은 밤에만 켤 수 있어요'); if (!on) setFire(false); else tip('모닥불을 켰어요. 동작 메뉴에서 가래떡을 구워 보세요', 4000); });
+async function grillTteok() {
+  if (S.night < 0.3) return tip('밤이 되면 모닥불에 가래떡을 구울 수 있어요 (🌙 단추)', 4000);
+  await sound(true); if (!S.fireOn) { setFire(true); setTimeout(() => S.act('tteok'), 900); } else S.act('tteok');
+}
+// ----- S11 별똥별: 밤에 가끔 떨어지고, 누르면 소원 -----
+const WISH_KEY = 'padoseojae.wishes';
+function shootStar() {
+  if (S.night > 0.6 && S.view === 'seat' && document.visibilityState === 'visible' && $('star-fall').hidden) {
+    const el = $('star-fall'), w = innerWidth, h = innerHeight;
+    el.style.left = (w * (0.35 + Math.random() * 0.5)) + 'px'; el.style.top = (h * (0.06 + Math.random() * 0.16)) + 'px';
+    el.hidden = false; el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
+    clearTimeout(shootStar.t); shootStar.t = setTimeout(() => { el.hidden = true; }, 3200);
+  }
+  setTimeout(shootStar, 18000 + Math.random() * 25000);
+}
+setTimeout(shootStar, 6000);
+$('star-fall').addEventListener('click', () => { $('star-fall').hidden = true; sound(true); sfx.twinkle(); $('dlg-wish').hidden = false; let n = 0; try { n = JSON.parse(localStorage.getItem(WISH_KEY) || '[]').length; } catch { /* */ } $('wish-count').textContent = n ? `지금까지 별에 보낸 소원 ${n}개` : ''; $('wish-text').focus(); });
+$('wish-close').addEventListener('click', () => { $('dlg-wish').hidden = true; });
+$('wish-ok').addEventListener('click', () => { const t = $('wish-text').value.trim(); if (!t) return tip('소원을 먼저 적어 주세요'); try { const a = JSON.parse(localStorage.getItem(WISH_KEY) || '[]'); a.push({ t, at: Date.now() }); localStorage.setItem(WISH_KEY, JSON.stringify(a.slice(-100))); } catch { /* */ } $('wish-text').value = ''; $('dlg-wish').hidden = true; sfx.twinkle(); S.act('clap'); tip('소원이 별을 타고 날아갔어요 ✨', 4000); });
+// ----- S11 유리병 편지: 파도가 가끔 데려옴. 열면 책 속 한 문장 -----
+const QUOTES = [
+  ['책은 한 번에 한 사람에게 말을 건다.', '파도서재 메모'],
+  ['오늘 읽은 한 문장이 내일의 나를 조금 바꾼다.', '파도서재 메모'],
+  ['가장 중요한 것은 눈에 보이지 않아.', '생텍쥐페리, 「어린 왕자」'],
+  ['네가 네 장미에게 들인 시간 때문에 네 장미가 그토록 소중한 거야.', '생텍쥐페리, 「어린 왕자」'],
+  ['행복한 가정은 모두 비슷하고, 불행한 가정은 저마다의 이유로 불행하다.', '톨스토이, 「안나 카레니나」'],
+  ['내일은 또 다른 날이니까.', '마거릿 미첼, 「바람과 함께 사라지다」'],
+  ['나는 생각한다, 그러므로 나는 존재한다.', '데카르트, 「방법서설」'],
+  ['새는 알에서 나오려고 투쟁한다. 알은 세계이다.', '헤르만 헤세, 「데미안」'],
+  ['우리가 할 수 있는 것은 주어진 시간으로 무엇을 할지 정하는 것뿐이야.', '톨킨, 「반지의 제왕」'],
+  ['천천히 서두르라.', '옛 라틴어 격언'],
+  ['한 권의 책을 읽은 사람은 그만큼의 바다를 건넌 사람이다.', '파도서재 메모'],
+  ['우리는 모두 시궁창에 있지만, 그중 몇몇은 별을 바라보고 있다.', '오스카 와일드, 「윈더미어 부인의 부채」'],
+];
+const BOTTLE_KEY = 'padoseojae.bottleIdx';
+function scheduleBottle(ms) { clearTimeout(scheduleBottle.t); scheduleBottle.t = setTimeout(() => { if (!S.bottleVisible) { S.showBottle(true); tip('파도가 유리병을 데려왔어요. 눌러 보세요', 4500); } }, ms); }
+scheduleBottle(45000);
+S.pick.onBottle = () => {
+  sound(true); sfx.shell(); let i = 0; try { i = (+localStorage.getItem(BOTTLE_KEY) || 0) % QUOTES.length; localStorage.setItem(BOTTLE_KEY, String(i + 1)); } catch { i = Math.floor(Math.random() * QUOTES.length); }
+  $('bottle-quote').textContent = QUOTES[i][0]; $('bottle-src').textContent = '— ' + QUOTES[i][1]; $('dlg-bottle').hidden = false; S.showBottle(false);
+};
+$('bottle-close').addEventListener('click', () => { $('dlg-bottle').hidden = true; scheduleBottle(150000 + Math.random() * 120000); });
+// ----- S11 읽은 시간만큼 모래성이 높아짐 (오늘 이 화면을 펴 둔 시간, 10분마다 한 층, 최대 6층) -----
+const READ_KEY = 'padoseojae.read.' + new Date().toISOString().slice(0, 10);
+let readSec = 0; try { readSec = +localStorage.getItem(READ_KEY) || 0; } catch { /* */ }
+let castleLv = Math.min(6, Math.floor(readSec / 600)); S.setCastleLevel(castleLv);
+setInterval(() => {
+  if (document.visibilityState !== 'visible') return; readSec += 5; try { localStorage.setItem(READ_KEY, String(readSec)); } catch { /* */ }
+  const lv = Math.min(6, Math.floor(readSec / 600)); if (lv > castleLv) { castleLv = lv; S.setCastleLevel(lv); sfx.twinkle(); tip(`오늘 ${Math.floor(readSec / 60)}분 함께 읽었어요. 모래성이 ${lv}층 높아졌어요 🏰`, 5000); }
+}, 5000);
+window.__read = { add: (min) => { readSec += min * 60; }, get sec() { return readSec; } };
+// ----- S11 꽃게를 다섯 번 누르면 친구 꽃게 -----
+let crabTaps = 0;
 // S10: 꽃게를 누르면 랜덤 말풍선
 const CRAB_SAYS = ['뿅', '뀨', '꼬륵', '챱', '*.*', '+••+', '집게 조심!', '사각사각', '안녕?', '...!', '♪', '킁'];
-S.pick.onCrab = (x, y) => {
+S.pick.onCrab = (x, y, friend) => {
   sound(true); sfx.yip?.();
+  if (!friend && ++crabTaps === 5) { S.addCrabFriend(); setTimeout(() => tip('꽃게 친구가 놀러 왔어요 🦀🦀', 4000), 600); }
   const b = document.createElement('div'); b.className = 'bubble'; b.textContent = CRAB_SAYS[Math.floor(Math.random() * CRAB_SAYS.length)];
   b.style.left = x + 'px'; b.style.top = y + 'px'; $('app').appendChild(b); setTimeout(() => b.remove(), 1700);
 };

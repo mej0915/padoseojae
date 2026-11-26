@@ -147,6 +147,18 @@ export const MOTIONS = {
     }); } },
 
   // 파도에 움찔 (자동, 버튼 없음)
+  // S11 가래떡 구워 먹기 — 책을 내리고 꼬치를 모닥불 쪽으로 내밀어 돌려 가며 굽고, 후후 불어 냠냠
+  tteok: { D: 7.6, eyes: (t) => env(t, 4.6, 4.8, 6.4, 6.7), show: { skewer: [0.25, 7.0] }, cues: [[1.0, 'sizzle'], [2.4, 'sizzle'], [4.1, 'ahh'], [4.7, 'nyam']], clip: () => {
+    const D = 7.6, down = (t) => env(t, 0.0, 0.5, 6.9, 7.5), out = (t) => env(t, 0.3, 1.0, 3.3, 4.0), eat = (t) => env(t, 3.5, 4.3, 6.6, 7.2), turn = (t) => Math.sin(t * 5) * out(t);
+    return clipFrom('tteok', D, {
+      ...bookDown(down),
+      'armR.quaternion': (t) => [0.55 * out(t) + 0.95 * eat(t), 0.15 * turn(t), -0.9 * out(t) - 0.45 * eat(t)],
+      'armL.quaternion': (t) => [-0.25 * down(t), 0, 0],
+      'head.quaternion': (t) => [0.1 * out(t) + 0.3 * eat(t) + 0.06 * Math.sin(t * 9) * env(t, 4.7, 4.9, 6.2, 6.6), -0.35 * out(t), 0.06 * out(t)],
+      'spine.quaternion': (t) => [0.05 * out(t), -0.18 * out(t), 0],
+      'spine.scale': (t) => [0.02 * bump(t, 4.7, 0.2), -0.03 * bump(t, 4.7, 0.2), 0.02 * bump(t, 4.7, 0.2)],
+    }); } },
+
   startle: { D: 2.2, cues: [], clip: () => {
     const jolt = (t) => (t < 0.12 ? sm(t / 0.12) : Math.exp(-(t - 0.12) * 3.2) * Math.cos((t - 0.12) * 11) * (1 - seg(t, 1.6, 2.2)));
     const hold = (t) => seg(t, 0, 0.1) * (1 - seg(t, 0.9, 1.9));

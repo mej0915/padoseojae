@@ -81,19 +81,19 @@ function fleeceTexture() {
 function createShawl() {
   const g = new THREE.Group(); g.name = 'shawl';
   const mat = paintMat('#ffffff', { map: fleeceTexture(), grain: 30, grainAmt: 0.18, tint: '#a08ac8', rim: 0.35, side: THREE.DoubleSide });
-  const path = [[0.255, 0.215], [0.3, 0.17], [0.345, 0.09], [0.37, -0.02], [0.385, -0.13], [0.395, -0.24]];
+  const path = [[0.27, 0.225], [0.33, 0.175], [0.385, 0.09], [0.41, -0.02], [0.425, -0.14], [0.43, -0.26]];   // S11: 더 두툼하게 띄움
   const at = (v) => { const f = v * (path.length - 1), i = Math.min(path.length - 2, Math.floor(f)), t = f - i; return [path[i][0] + (path[i + 1][0] - path[i][0]) * t, path[i][1] + (path[i + 1][1] - path[i][1]) * t]; };
   const A = 2.0;   // 등 쪽(+z)에서 좌우로 2.0rad씩 → 앞쪽 약 70도가 열림
-  const pos = (u, v) => { const a = (u - 0.5) * 2 * A; let [r, y] = at(v); r += 0.012 * Math.sin(a * 7) * v * v + 0.01; const edge = Math.abs(u - 0.5) * 2; y -= edge * edge * 0.05 * v; return new THREE.Vector3(Math.sin(a) * r, y, Math.cos(a) * r * 0.9); };
-  const NU = 36, NV = 12, geo = new THREE.PlaneGeometry(1, 1, NU, NV), p = geo.attributes.position, uv = geo.attributes.uv;
+  const pos = (u, v) => { const a = (u - 0.5) * 2 * A; let [r, y] = at(v); r += 0.012 * Math.sin(a * 7) * v * v + 0.01 + 0.028 * Math.pow(Math.sin(a * 3.2), 2) * Math.pow(Math.sin(v * Math.PI * 2.2 + 0.4), 2); /* 빵실한 누빔 */ const edge = Math.abs(u - 0.5) * 2; y -= edge * edge * 0.05 * v; return new THREE.Vector3(Math.sin(a) * r, y, Math.cos(a) * r * 0.9); };
+  const NU = 48, NV = 16, geo = new THREE.PlaneGeometry(1, 1, NU, NV), p = geo.attributes.position, uv = geo.attributes.uv;
   for (let i = 0; i < p.count; i++) { const v3 = pos(uv.getX(i), 1 - uv.getY(i)); p.setXYZ(i, v3.x, v3.y, v3.z); }
   geo.computeVertexNormals();
   const cloth = new THREE.Mesh(geo, mat); cloth.castShadow = true; g.add(cloth);
   // 도톰한 테두리: 목 깃(굵게), 양쪽 앞자락, 아래 끝단
   const tube = (pts, r) => { const m = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), pts.length * 6, r, 8, false), mat); m.castShadow = true; addOutline(m, LINE, 0.005, 14); g.add(m); };
-  tube(Array.from({ length: 13 }, (_, i) => pos(i / 12, 0).add(new THREE.Vector3(0, 0.01, 0))), 0.034);
-  for (const u of [0, 1]) tube(Array.from({ length: 8 }, (_, i) => pos(u, i / 7)), 0.022);
-  tube(Array.from({ length: 13 }, (_, i) => pos(i / 12, 1)), 0.02);
+  tube(Array.from({ length: 13 }, (_, i) => pos(i / 12, 0).add(new THREE.Vector3(0, 0.015, 0))), 0.058);
+  for (const u of [0, 1]) tube(Array.from({ length: 8 }, (_, i) => pos(u, i / 7)), 0.038);
+  tube(Array.from({ length: 13 }, (_, i) => pos(i / 12, 1)), 0.036);
   return g;
 }
 
@@ -209,6 +209,12 @@ export function createSeal() {
 
   // ----- S10 밤에 두르는 도톰한 털담요(숄): 어깨부터 등·옆을 감싸고 앞은 열려 팔과 책이 나옴 -----
   const shawl = createShawl(); shawl.visible = false; spine.add(shawl);
+  // S11 가래떡 꼬치: 오른 지느러미에 쥐고 모닥불 쪽으로 내밂
+  const skewer = new THREE.Group(); skewer.name = 'skewer';
+  { const stick = part(new THREE.CylinderGeometry(0.008, 0.01, 0.62, 6), paintMat('#b98a5a'), 'stick'); stick.position.y = -0.26; skewer.add(stick);
+    const tt = part(new THREE.CapsuleGeometry(0.045, 0.2, 6, 12), paintMat('#fff8ea', { grain: 20 }), 'tteok'); tt.position.y = -0.5; skewer.add(tt);
+    for (let i = 0; i < 6; i++) { const b = new THREE.Mesh(new THREE.CircleGeometry(0.012, 8), new THREE.MeshBasicMaterial({ color: '#c9874a', transparent: true, opacity: 0 })); const a = i * 1.7; b.position.set(Math.cos(a) * 0.046, -0.43 - (i % 3) * 0.06, Math.sin(a) * 0.046); b.lookAt(b.position.clone().multiplyScalar(2).setY(b.position.y)); b.name = 'toast'; skewer.add(b); } }
+  skewer.position.set(0.0, -0.17, -0.03); skewer.rotation.set(-1.05, 0, 0.55); skewer.visible = false; armR.add(skewer);
 
   // ----- S10 캐릭터 바꾸기: 같은 몸(같은 동작)에 색과 귀만 바꿔 다른 친구로 -----
   const earsBear = new THREE.Group(), earsBunny = new THREE.Group(); head.add(earsBear, earsBunny);
@@ -233,5 +239,5 @@ export function createSeal() {
     return K.name;
   }
 
-  return { group, body, skeleton, bones: { root, spine, head, armL, armR, footL, footR, book }, slots, extras: { lids, eyes, mug, leaf, blanket, glasses, shawl }, setKind, get kind() { return kind; }, KINDS };
+  return { group, body, skeleton, bones: { root, spine, head, armL, armR, footL, footR, book }, slots, extras: { lids, eyes, mug, leaf, blanket, glasses, shawl, skewer }, setKind, get kind() { return kind; }, KINDS };
 }

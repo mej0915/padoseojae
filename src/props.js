@@ -68,7 +68,7 @@ export function createLantern() {
   const light = new THREE.PointLight('#ffb866', 0.3, 2.2, 2); light.position.y = 0.14; g.add(light);
   let on = 1; g.userData.setOn = (k) => { on = k; glow.material.color.set('#7a6658').lerp(new THREE.Color('#ffd98a'), k); };   // S10: 밤에만 불을 켬
   g.userData.glowAt = glow;
-  g.userData.update = (t) => { const f = 0.85 + 0.15 * Math.sin(t * 7.3) * Math.sin(t * 2.9 + 1); light.intensity = 1.6 * f * on; halo.material.opacity = (0.16 + 0.07 * f) * on; halo.scale.setScalar(0.95 + 0.1 * f); };
+  g.userData.update = (t) => { const f = 0.85 + 0.15 * Math.sin(t * 7.3) * Math.sin(t * 2.9 + 1); light.intensity = 1.0 * f * on; halo.material.opacity = (0.16 + 0.07 * f) * on; halo.scale.setScalar(0.95 + 0.1 * f); };
   return g;
 }
 
@@ -96,9 +96,10 @@ export function createCastle() {
   const g = new THREE.Group(); g.name = 'castle';
   const sand = { grain: 40, grainAmt: 0.3, tint: '#b98a8a', rim: 0.15 }, C = '#efc58d';
   const wall = mesh(new THREE.CylinderGeometry(0.3, 0.36, 0.16, 20), C, sand, 0.005); wall.position.y = 0.08; g.add(wall);
-  const tower = (x, z, r, h) => { const t = mesh(new THREE.CylinderGeometry(r * 0.9, r, h, 14), C, sand, 0.005); t.position.set(x, h / 2, z); g.add(t);
-    const roof = mesh(new THREE.ConeGeometry(r * 1.05, r * 1.3, 14), '#f3d09c', sand, 0.005); roof.position.set(x, h + r * 0.62, z); g.add(roof);
-    for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; const c = new THREE.Mesh(new THREE.BoxGeometry(r * 0.3, r * 0.3, r * 0.3), paintMat(C, sand)); c.position.set(x + Math.cos(a) * r * 0.82, h + r * 0.08, z + Math.sin(a) * r * 0.82); c.castShadow = true; g.add(c); } };
+  const towers = [];
+  const tower = (x, z, r, h) => { const parts = []; const t = mesh(new THREE.CylinderGeometry(r * 0.9, r, h, 14), C, sand, 0.005); t.position.set(x, h / 2, z); g.add(t);
+    const roof = mesh(new THREE.ConeGeometry(r * 1.05, r * 1.3, 14), '#f3d09c', sand, 0.005); roof.position.set(x, h + r * 0.62, z); g.add(roof); parts.push(roof);
+    for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; const c = new THREE.Mesh(new THREE.BoxGeometry(r * 0.3, r * 0.3, r * 0.3), paintMat(C, sand)); c.position.set(x + Math.cos(a) * r * 0.82, h + r * 0.08, z + Math.sin(a) * r * 0.82); c.castShadow = true; g.add(c); parts.push(c); } towers.push(parts); };
   tower(0, 0, 0.13, 0.42); tower(-0.27, 0.12, 0.085, 0.27); tower(0.27, 0.1, 0.085, 0.25); tower(0.02, 0.3, 0.07, 0.2);
   const door = new THREE.Mesh(new THREE.CircleGeometry(0.045, 12, 0, Math.PI), new THREE.MeshBasicMaterial({ color: '#b98c62' })); door.position.set(0.0, 0.03, 0.372); g.add(door);
   const fp = mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.22, 6), '#c99662', {}, 0); fp.position.set(0, 0.42 + 0.17 + 0.11, 0); g.add(fp);
@@ -111,6 +112,13 @@ export function createCastle() {
   const sh = new THREE.Group(); sh.position.set(0.36, 0.02, 0.52); sh.rotation.set(0, 0.9, 0);
   const hd = mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.22, 8), '#f2c35f', {}, 0.004); hd.rotation.z = Math.PI / 2; sh.add(hd);
   const bl = mesh(new THREE.BoxGeometry(0.1, 0.012, 0.075), '#f2c35f', {}, 0.004); bl.position.x = 0.15; sh.add(bl); g.add(sh);
+  // S11: 읽은 시간만큼 가운데 탑이 한 층씩 높아짐
+  const tierG = new THREE.Group(); g.add(tierG); const lift = [...towers[0], fp, flag].map((o) => [o, o.position.y]);
+  g.userData.setLevel = (n) => {
+    n = Math.max(0, Math.min(6, n | 0)); while (tierG.children.length) tierG.remove(tierG.children[0]);
+    for (let i = 0; i < n; i++) { const r = 0.12 - i * 0.008; const d = mesh(new THREE.CylinderGeometry(r * 0.92, r, 0.1, 14), i % 2 ? '#f3d09c' : C, sand, 0.005); d.position.set(0, 0.42 + 0.05 + i * 0.1, 0); tierG.add(d); }
+    for (const [o, y] of lift) o.position.y = y + n * 0.1;
+  };
   const pos = fg.attributes.position, base = Float32Array.from(pos.array);
   g.userData.update = (t) => { for (let i = 0; i < pos.count; i++) { const x = base[i * 3]; pos.setZ(i, Math.sin(x * 40 - t * 5) * 0.012 * (x / 0.13)); } pos.needsUpdate = true; };
   return g;
@@ -215,4 +223,43 @@ export function createSign() {
 /** 조약돌 */
 export function createPebble(r = 0.045, color = '#b3a092') {
   const p = mesh(new THREE.SphereGeometry(r, 12, 8), color, { grain: 30, grainAmt: 0.2 }, 0); p.scale.set(1.2, 0.55, 0.9); p.position.y = r * 0.2; return p;
+}
+
+/** S11 모닥불: 돌 테두리, 엇갈린 장작, 일렁이는 불꽃 세 겹, 튀어 오르는 불티. setOn(0~1)로 켜고 끔 */
+export function createCampfire() {
+  const g = new THREE.Group(); g.name = 'campfire';
+  for (let i = 0; i < 9; i++) { const a = (i / 9) * Math.PI * 2; const s = mesh(new THREE.DodecahedronGeometry(0.06 + rnd() * 0.02, 0), i % 2 ? '#9c8d86' : '#b3a39a', { grain: 30 }, 0.004); s.scale.y = 0.65; s.position.set(Math.cos(a) * 0.24, 0.03, Math.sin(a) * 0.24); s.rotation.set(rnd(), rnd() * 3, rnd()); g.add(s); }
+  const ash = new THREE.Mesh(new THREE.CircleGeometry(0.2, 20), new THREE.MeshBasicMaterial({ color: '#5b4a44' })); ash.rotation.x = -Math.PI / 2; ash.position.y = 0.006; g.add(ash);
+  for (let i = 0; i < 4; i++) { const l = mesh(new THREE.CylinderGeometry(0.03, 0.035, 0.36, 8), i % 2 ? '#8a5a3c' : '#9b6a48', { grain: 26 }, 0.004); l.rotation.set(Math.PI / 2 - 0.35, (i / 4) * Math.PI * 2 + 0.3, 0); l.position.y = 0.07; g.add(l); }
+  const fireMat = (c, o) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false, blending: THREE.AdditiveBlending });
+  const flames = [['#ff7a2e', 0.85, 0.13, 0.34], ['#ffb347', 0.8, 0.09, 0.27], ['#fff1b0', 0.9, 0.05, 0.17]].map(([c, o, r, h], i) => {
+    const geo = new THREE.ConeGeometry(r, h, 10, 4, true); const p = geo.attributes.position;
+    for (let k = 0; k < p.count; k++) { const y = p.getY(k); p.setX(k, p.getX(k) * (1 + 0.25 * Math.sin(y * 18 + i))); }
+    const m = new THREE.Mesh(geo, fireMat(c, o)); m.position.y = 0.08 + h / 2; m.userData.h = h; g.add(m); return m;
+  });
+  const sparks = Array.from({ length: 14 }, () => { const s = new THREE.Mesh(new THREE.SphereGeometry(0.008, 5, 4), fireMat('#ffcf6a', 1)); s.userData = { t: rnd() * 2, x: 0, z: 0 }; g.add(s); return s; });
+  const light = new THREE.PointLight('#ff9a4a', 0, 3.4, 1.6); light.position.y = 0.35; g.add(light);
+  const glowAt = new THREE.Object3D(); glowAt.position.y = 0.2; g.add(glowAt);
+  let on = 0; g.userData.on = 0;
+  g.userData.setOn = (k) => { on = k; g.userData.on = k; };
+  g.userData.glowAt = glowAt;
+  g.userData.update = (t, dt) => {
+    const f = 0.8 + 0.2 * Math.sin(t * 9.1) * Math.sin(t * 3.7 + 1.3);
+    flames.forEach((m, i) => { m.visible = on > 0.02; m.scale.set(on * (0.9 + 0.12 * Math.sin(t * (11 + i * 3) + i)), on * (0.85 + 0.25 * Math.sin(t * (7 + i * 2) + i * 2)), on * (0.9 + 0.1 * Math.cos(t * 9 + i))); m.rotation.y = t * (0.8 + i * 0.5); m.position.y = 0.08 + m.userData.h / 2 * m.scale.y; });
+    for (const s of sparks) { const u = s.userData; u.t += (dt || 0.016) * 0.7; if (u.t > 1) { u.t = 0; u.x = (rnd() - 0.5) * 0.12; u.z = (rnd() - 0.5) * 0.12; } s.visible = on > 0.3; s.position.set(u.x + Math.sin(u.t * 8 + u.x * 50) * 0.04 * u.t, 0.15 + u.t * 0.7, u.z); s.material.opacity = (1 - u.t) * on; }
+    light.intensity = 1.2 * f * on;
+  };
+  return g;
+}
+
+/** S11 유리병 편지: 코르크 마개, 말린 쪽지가 비치는 초록빛 병. 물가에서 살짝 흔들림 */
+export function createBottle() {
+  const g = new THREE.Group(); g.name = 'bottle';
+  const glass = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.13, 6, 14), new THREE.MeshToonMaterial({ color: '#9fd6c2', transparent: true, opacity: 0.6 })); glass.rotation.z = Math.PI / 2; glass.position.y = 0.05; g.add(glass); addOutline(glass, '#4f7f74', 0.004, 12);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.03, 0.05, 10), glass.material); neck.rotation.z = Math.PI / 2; neck.position.set(0.12, 0.05, 0); g.add(neck);
+  const cork = mesh(new THREE.CylinderGeometry(0.019, 0.017, 0.035, 10), '#b98a5a', {}, 0.003); cork.rotation.z = Math.PI / 2; cork.position.set(0.155, 0.05, 0); g.add(cork);
+  const paper = mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.12, 10), '#fbf0d8', {}, 0); paper.rotation.z = Math.PI / 2; paper.position.y = 0.05; g.add(paper);
+  const ribbon = mesh(new THREE.TorusGeometry(0.026, 0.004, 6, 14), '#e07a5f', {}, 0); ribbon.rotation.y = Math.PI / 2; ribbon.position.y = 0.05; g.add(ribbon);
+  g.userData.update = (t) => { g.rotation.z = Math.sin(t * 1.6) * 0.06; g.position.y = (g.userData.y0 || 0) + Math.abs(Math.sin(t * 1.6)) * 0.01; };
+  return g;
 }

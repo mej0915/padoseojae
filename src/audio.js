@@ -72,7 +72,7 @@ export function createAudio(base = './audio/') {
     if (!ctx) return;
     const t = ctx.currentTime;
     g.master.gain.setTargetAtTime(muted ? 0 : 1, t, 0.08);        // 끄면 음악까지 전부 꺼진다
-    g.bg.gain.setTargetAtTime(vol.bg * bgScale * (1 - 0.4 * nightK), t, 0.6);   // 밤바다는 파도 소리가 조금 작게
+    g.bg.gain.setTargetAtTime(vol.bg * bgScale * (1 - 0.8 * nightK), t, 0.6);   // 밤바다는 파도 소리가 아주 작게
     g.sfx.gain.setTargetAtTime(vol.sfx, t, 0.05);
   }
 

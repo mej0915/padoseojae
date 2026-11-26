@@ -52,6 +52,20 @@ export function createSfx(audio) {
     pat() { if (!ok()) return; const t = now(); burst(t, 0.08, { type: 'lowpass', f0: 1800, f1: 600, q: 0.7, gain: 0.42, attack: 0.004 }); tone(t, 230, 0.07, 0.08); },
     /** 기분 좋은 물범 목소리: 꾸우~ */
     yip() { if (!ok()) return; const t = now(); voice(t, [[0, 900], [0.05, 1350], [0.11, 1000]], 0.05, 0); voice(t + 0.17, [[0, 950], [0.05, 1400], [0.1, 1050]], 0.04, 0); },   // 강아지 "왕왕" (작고 높게)
+    /** S11 모닥불: 낮게 웅웅거리는 불 소리 + 무작위로 타닥 튀는 소리 */
+    fireOn() {
+      if (!ok() || this._fire) return; const c = audio.ctx, s = c.createBufferSource(); s.buffer = buf(); s.loop = true;
+      const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 520; const g = c.createGain(); g.gain.value = 0.0001; g.gain.setTargetAtTime(0.09, c.currentTime, 1.2);
+      s.connect(f); f.connect(g); g.connect(audio.sfxBus); s.start();
+      const pop = () => { if (!this._fire) return; const t = now(); const n = 1 + (Math.random() * 3 | 0); for (let i = 0; i < n; i++) burst(t + i * (0.02 + Math.random() * 0.05), 0.02 + Math.random() * 0.04, { type: 'highpass', f0: 1800 + Math.random() * 2500, q: 0.7, gain: 0.05 + Math.random() * 0.12, attack: 0.002 }); this._fire.timer = setTimeout(pop, 120 + Math.random() * 700); };
+      this._fire = { s, g, timer: 0 }; pop();
+    },
+    fireOff() { const F = this._fire; if (!F) return; this._fire = null; clearTimeout(F.timer); const t = audio.ctx.currentTime; F.g.gain.setTargetAtTime(0.0001, t, 0.5); setTimeout(() => { try { F.s.stop(); } catch { /* */ } }, 2500); },
+    /** 가래떡 굽는 지글 소리, 냠냠 */
+    sizzle() { if (!ok()) return; const t = now(); burst(t, 1.6, { type: 'highpass', f0: 3500, f1: 2600, q: 0.5, gain: 0.05, attack: 0.3 }); },
+    nyam() { if (!ok()) return; const t = now(); for (let i = 0; i < 3; i++) burst(t + i * 0.26, 0.12, { type: 'bandpass', f0: 700, f1: 420, q: 1.2, gain: 0.12, attack: 0.02 }); voice(t + 0.9, [[0, 620], [0.15, 820], [0.35, 720]], 0.045); },
+    /** 별똥별·소원·유리병 */
+    twinkle() { if (!ok()) return; const t = now(); [1568, 2093, 2637, 3136].forEach((fr, i) => tone(t + i * 0.07, fr, 0.5, 0.035)); },
     coo() { if (!ok()) return; const t = now(); voice(t, [[0, 640], [0.12, 880], [0.32, 760]], 0.055); voice(t + 0.38, [[0, 700], [0.14, 920]], 0.045); },
     /** 지느러미 휘두르는 바람 (손 흔들기) */
     flap() { if (!ok()) return; const t = now(); for (let i = 0; i < 3; i++) burst(t + i * 0.26, 0.2, { f0: 700, f1: 1500, q: 0.8, gain: 0.07, attack: 0.05 }); },

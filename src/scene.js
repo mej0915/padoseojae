@@ -26,7 +26,7 @@ export function pickQuality() {
 }
 
 const FINISH_FRAG = /* glsl */`
-uniform sampler2D tScene; uniform vec2 uRes, uSun; uniform float uDpr, uPaper, uDof, uFocus, uDusk, uHor, uSkyK, uNight, uSink, uTime, uSunR; uniform vec3 uLamp0, uLamp1; uniform vec2 uSunD;
+uniform sampler2D tScene; uniform vec2 uRes, uSun; uniform float uDpr, uPaper, uDof, uFocus, uDusk, uHor, uSkyK, uNight, uSink, uTime, uSunR; uniform vec3 uLamp0, uLamp1, uLamp2; uniform vec2 uSunD;
 float h21(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
 ${NOISE}
 void main(){
@@ -96,8 +96,9 @@ void main(){
     vec3 nightC = lmN * vec3(0.30, 0.37, 0.62) + o.rgb * 0.10 + vec3(0.015, 0.02, 0.05);
     o.rgb = mix(o.rgb, nightC, uNight * 0.92);
     vec2 asp = vec2(uRes.x / uRes.y, 1.0);
+    float p2 = uLamp2.z > 0.001 ? exp(-pow(length((uv - uLamp2.xy) * asp) / uLamp2.z, 2.0)) : 0.0;
     float p0 = exp(-pow(length((uv - uLamp0.xy) * asp) / max(uLamp0.z, 1e-3), 2.0)), p1 = exp(-pow(length((uv - uLamp1.xy) * asp) / max(uLamp1.z, 1e-3), 2.0));
-    o.rgb = mix(o.rgb, day * vec3(1.05, 0.78, 0.52), clamp(p0 * 0.62 + p1 * 0.4, 0.0, 1.0) * uNight);
+    o.rgb = mix(o.rgb, day * vec3(1.05, 0.78, 0.52), clamp(p0 * 0.5 + p1 * 0.34 + p2 * 0.66, 0.0, 1.0) * uNight);
     float skyN = step(uHor + 0.006, uv.y);
     vec2 cellP = px / 22.0, cell = floor(cellP), f = fract(cellP);
     float hs = h21(cell), on = step(0.66, h21(cell + 9.1));
@@ -192,7 +193,7 @@ export function createScene(canvas, audio = null) {
       blinkT -= dt; if (blinkT < -0.13) blinkT = 2.4 + Math.random() * 3.4 + (Math.random() < 0.2 ? -2.1 : 0);   // 가끔 두 번 연달아 깜빡
       const closed = motion.state.eyes > 0.5 || blinkT < 0;
       const sleepy = motion.state.eyes <= 0.5 || motion.state.sleepy; for (const l of SX.lids) { l.visible = closed; l.rotation.z = sleepy ? Math.PI : 0; l.position.y = sleepy ? 0.178 : 0.162; } for (const e of SX.eyes) e.visible = !closed;
-      SX.mug.visible = !!motion.state.show.mug; SX.leaf.visible = !!motion.state.show.leaf;
+      SX.mug.visible = !!motion.state.show.mug; SX.leaf.visible = !!motion.state.show.leaf; SX.skewer.visible = !!motion.state.show.skewer;
     } };
   const chars = [sealChar], charIdx = 0;
   function toggleItem(id) { worn[id] = !worn[id]; applyWorn(); return worn[id]; }
@@ -208,14 +209,20 @@ export function createScene(canvas, audio = null) {
   // S10 밤: 파라솔 방울 불빛 + 랜턴
   const tips = []; parasol.traverse((o) => { if (o.userData.tip) tips.push(o); });
   const lantern = PR.createLantern(); lantern.position.set(SPOT.x + 0.5, 0.03, SPOT.z + 0.22); lantern.scale.setScalar(1.25); scene.add(lantern); updaters.push(lantern);
+  const fire = PR.createCampfire(); fire.position.set(SPOT.x + 0.38, 0.02, SPOT.z + 0.95); fire.scale.setScalar(0.95); scene.add(fire); updaters.push(fire);   // S11: 밤에만 보이는 모닥불 자리
+  let fireWant = 0, fireK = 0;
   const glowScene = new THREE.Scene();
   const glowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,240,200,1)'); g.addColorStop(0.2, 'rgba(255,200,120,.75)'); g.addColorStop(0.5, 'rgba(255,170,90,.22)'); g.addColorStop(1, 'rgba(255,150,80,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
   const mkGlow = (s) => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, opacity: 0 })); sp.scale.setScalar(s); glowScene.add(sp); return sp; };
-  const tipGlows = tips.map(() => mkGlow(0.3)), lanternGlow = mkGlow(0.75);
+  const tipGlows = tips.map(() => mkGlow(0.3)), lanternGlow = mkGlow(0.75), fireGlow = mkGlow(1.6);
+  // S11 반딧불과 파랗게 빛나는 물가(밤)
+  const flies = Array.from({ length: 22 }, (_, i) => { const sp = mkGlow(0.12); sp.material.color.set('#e4ff9c'); sp.userData = { x: -3 + Math.random() * 6, y: 0.25 + Math.random() * 1.1, z: SPOT.z - 0.8 + Math.random() * 2.6, ph: Math.random() * 20, sp: 0.3 + Math.random() * 0.5 }; return sp; });
+  const shore = Array.from({ length: 46 }, (_, i) => { const sp = mkGlow(0.32); sp.material.color.set('#6fe6ff'); sp.userData = { i, ph: Math.random() * 10, base: new THREE.Vector3() }; return sp; });
+  function placeShore() { if (!L) return; const hw = (W / L.scale) / 2; shore.forEach((sp, i) => { const sx = STAGE.focusX - hw * 1.1 + (i / (shore.length - 1)) * hw * 2.2, sy = 748 + 26 * Math.sin(i * 1.7) * Math.random(); sp.userData.base.copy(groundFromStage(sx, sy)).setY(0.03); }); }
   const warmEm = new THREE.Color('#ffc874');
   // S7: 소품을 줄여 여백을 둔다 (돗자리 하나, 탁자, 모래성, 팻말, 바위, 조개 4개, 조약돌 몇 개, 풀 두 포기, 꽃게 한 마리)
   put(PR.createTable(), 255, 812, 150, 828, 0.85);
-  const castle = put(PR.createCastle(), 545, 880, 230, 960, 1, -0.3);     // 세로 화면에서는 모래성을 빼서 여백을 둠
+  const castle = put(PR.createCastle(), 545, 880, 168, 985, 0.72, -0.3);     // 세로 화면에서는 모래성을 빼서 여백을 둠
   put(PR.createRocks(), -600, 776, -250, 760, 0.35);
   put(PR.createStarfish('#ef8466'), -470, 935, -232, 940, 0.85, 0.4);
   // 내 조개 4개: 앞쪽 빈 모래에 넉넉히 떨어뜨려 놓아 손가락으로도 누르기 쉽게 (무대 좌표, 가로 화면 / 세로 화면)
@@ -228,6 +235,8 @@ export function createScene(canvas, audio = null) {
   put(PR.createGrass(16, 0.75), -735, 1006, -232, 1012, 0.7);
   put(PR.createGrass(12, 0.6), 748, 1010, 236, 1016, 0.7, 1.2);
   const crab = put(createCrab('#e8694c', 4, 0), 415, 820, -150, 806, 0.6);   // S10: 넓게 돌아다님 (화면 밖으로도)
+  const crab2 = put(createCrab('#f2a06a', 3.5, 2.3), 300, 860, -60, 850, 0.42); crab2.visible = false;   // S11: 다섯 번 누르면 나타나는 친구 꽃게
+  const bottle = put(PR.createBottle(), -260, 792, -120, 786, 1.1, 0.5); bottle.visible = false; bottle.userData.y0 = 0;
   // 조개 반짝임: 누를 수 있다는 표시
   const sparkTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); x.translate(32, 32);
     const g = x.createRadialGradient(0, 0, 0, 0, 0, 30); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.25, 'rgba(255,246,214,0.55)'); g.addColorStop(1, 'rgba(255,230,180,0)'); x.fillStyle = g; x.fillRect(-32, -32, 64, 64);
@@ -295,7 +304,7 @@ export function createScene(canvas, audio = null) {
   // ----- 마무리 패스 -----
   const rt = new THREE.WebGLRenderTarget(1, 1, { type: halfOK ? THREE.HalfFloatType : THREE.UnsignedByteType, samples: Q.msaa });
   if (!halfOK) rt.texture.colorSpace = THREE.SRGBColorSpace;
-  const finishU = { tScene: { value: rt.texture }, uRes: { value: new THREE.Vector2() }, uDpr: { value: 1 }, uPaper: { value: Q.finish ? 1 : 0 }, uSun: { value: new THREE.Vector2(0.7, 0.75) }, uDof: { value: 1 }, uFocus: { value: 0.35 }, uDusk: { value: 0 }, uHor: { value: 0.6 }, uSkyK: { value: 1 }, uNight: { value: 0 }, uSink: { value: 0 }, uTime: { value: 0 }, uSunR: { value: 0.04 }, uLamp0: { value: new THREE.Vector3() }, uLamp1: { value: new THREE.Vector3() }, uSunD: { value: new THREE.Vector2(0.65, 0.7) } };
+  const finishU = { tScene: { value: rt.texture }, uRes: { value: new THREE.Vector2() }, uDpr: { value: 1 }, uPaper: { value: Q.finish ? 1 : 0 }, uSun: { value: new THREE.Vector2(0.7, 0.75) }, uDof: { value: 1 }, uFocus: { value: 0.35 }, uDusk: { value: 0 }, uHor: { value: 0.6 }, uSkyK: { value: 1 }, uNight: { value: 0 }, uSink: { value: 0 }, uTime: { value: 0 }, uSunR: { value: 0.04 }, uLamp0: { value: new THREE.Vector3() }, uLamp1: { value: new THREE.Vector3() }, uSunD: { value: new THREE.Vector2(0.65, 0.7) }, uLamp2: { value: new THREE.Vector3() } };
   const finishScene = new THREE.Scene();
   const finish = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
     uniforms: finishU, depthTest: false, depthWrite: false, vertexShader: 'void main(){ gl_Position = vec4(position.xy, 0.0, 1.0); }', fragmentShader: FINISH_FRAG,
@@ -345,9 +354,9 @@ export function createScene(canvas, audio = null) {
       it.o.position.set(g.x, it.y0, g.z); it.o.scale.setScalar(it.s0 * mix(it.sP, 1, k)); it.o.userData.s0 = it.o.scale.x;
     }
     parasol.position.set(mix(-0.5, -0.92, k), 0, CHAIR_POS.z - 0.42);
-    castle.visible = k > 0.45;
     const sunP = [L.tx + 1000 * s, L.ty + 232 * s]; finishU.uSun.value.set(sunP[0] / W, 1 - sunP[1] / H); finishU.uSunR.value = 30 * s / H; finishU.uSunD.value.set((L.tx + 1000 * s) / W, 1 - (L.ty + 338 * s) / H);   // 그림 속 해 원반 위치
     applyCamera(true);
+    placeShore?.();
   }
 
   let camDt = 0;
@@ -386,7 +395,8 @@ export function createScene(canvas, audio = null) {
     }
     if (view === 'seat') {      // S7: 내 자리에서 바로 조개 누르기
       const i = shellAt(mx, my); if (i >= 0) { shellHop[i] = 1; pick.onShell?.(i); return; }
-      { const [cx, cy] = screenOf(crab.userData.worldPos(tmp2)); if (Math.hypot(cx - mx, cy - my) < Math.max(42, Math.min(W, H) * 0.065)) { crab.userData.poke(); pick.onCrab?.(cx, cy); return; } }   // S10: 꽃게 누르면 말풍선
+      for (const cr of [crab, crab2]) { if (!cr.visible) continue; const [cx, cy] = screenOf(cr.userData.worldPos(tmp2)); if (Math.hypot(cx - mx, cy - my) < Math.max(42, Math.min(W, H) * 0.065)) { cr.userData.poke(); pick.onCrab?.(cx, cy, cr === crab2); return; } }   // S10: 꽃게 누르면 말풍선
+      if (bottle.visible) { tmp2.copy(bottle.position).setY(0.06); const [bx, by] = screenOf(tmp2); if (Math.hypot(bx - mx, by - my) < Math.max(44, Math.min(W, H) * 0.07)) { pick.onBottle?.(); return; } }
       return;
     }
     if (view === 'focus') {     // 조개 누르기 (작은 화면에서도 누르기 쉽게 넉넉히)
@@ -493,6 +503,7 @@ export function createScene(canvas, audio = null) {
   const fwd = new THREE.Vector3();
   function updateDusk() {
     const m = (performance.now() - dusk.start) / 60000, ss = (x) => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
+    if (dusk.to !== undefined) { const cur = dusk.nightForced ?? dusk.night; const step = camDt / 7; const nv = cur + Math.max(-step, Math.min(step, dusk.to - cur)); dusk.nightForced = nv; if (nv === dusk.to) dusk.to = undefined; }   // S11 해님·달님 단추: 약 7초에 걸쳐 바뀜
     let night = dusk.nightForced ?? ss((m - 11) / 8), sink = dusk.nightForced !== null ? Math.min(1, dusk.nightForced * 3) : ss((m - 10) / 4);
     const t = night > 0 ? 1 : (dusk.forced ?? Math.min(1, m / dusk.minutes));
     const v = t * t * (3 - 2 * t); dusk.v = v; dusk.night = night; dusk.sink = sink;
@@ -503,6 +514,13 @@ export function createScene(canvas, audio = null) {
     lantern.userData.setOn(ss((night - 0.15) / 0.3)); lantern.userData.glowAt.getWorldPosition(tmp2); lanternGlow.position.copy(tmp2); lanternGlow.material.opacity = ss((night - 0.15) / 0.3) * (0.85 + 0.15 * Math.sin(simT * 7.3));
     { const [lx, ly] = screenOf(tmp2); finishU.uLamp0.value.set(lx / W, 1 - ly / H, 0.32 * Math.min(1, H / W * 1.6)); }
     { tmp2.set(parasol.position.x, 1.3, parasol.position.z); const [px2, py2] = screenOf(tmp2); finishU.uLamp1.value.set(px2 / W, 1 - py2 / H, 0.42 * Math.min(1, H / W * 1.6)); }
+    // S11 모닥불·반딧불·물가 빛
+    fire.visible = night > 0.25; if (night < 0.25) fireWant = 0;
+    fireK += (fireWant - fireK) * Math.min(1, camDt * 1.5); fire.userData.setOn(fireK);
+    fire.userData.glowAt.getWorldPosition(tmp2); fireGlow.position.copy(tmp2); fireGlow.material.opacity = fireK * (0.55 + 0.15 * Math.sin(simT * 9.1) * Math.sin(simT * 3.7));
+    { const [fx, fy] = screenOf(tmp2); finishU.uLamp2.value.set(fx / W, 1 - fy / H, 0.5 * Math.min(1, H / W * 1.6) * fireK); }
+    for (const f of flies) { const u = f.userData; f.position.set(u.x + Math.sin(simT * u.sp + u.ph) * 0.5, u.y + Math.sin(simT * u.sp * 1.7 + u.ph * 2) * 0.2, u.z + Math.cos(simT * u.sp * 0.8 + u.ph) * 0.4); f.material.opacity = ss((night - 0.5) / 0.4) * Math.max(0, Math.sin(simT * 1.3 + u.ph * 3)) ** 2; }
+    for (const sp of shore) { const u = sp.userData; sp.position.copy(u.base); sp.material.opacity = ss((night - 0.4) / 0.4) * (0.25 + 0.75 * (wave.wash || 0)) * (0.5 + 0.5 * Math.sin(simT * 3 + u.ph)); }
     // 밤이 깊어지면 도톰한 숄을 어깨에 두름
     shawlK += ((night > 0.4 ? 1 : 0) - shawlK) * Math.min(1, camDt * 2.5);
     SX.shawl.visible = shawlK > 0.02; SX.shawl.scale.setScalar(0.85 + 0.15 * shawlK); SX.shawl.position.y = (1 - shawlK) * 0.12;
@@ -573,7 +591,11 @@ export function createScene(canvas, audio = null) {
   requestAnimationFrame(frame);
 
   return {
-    setView, get view() { return view; }, set onView(f) { onView = f; }, pick, writeSand, renderMirror, toggleItem, worn, act, motion, ctl, set onCue(f) { onCue = f; }, get sandWriting() { return sandW; }, setDusk, get dusk() { return dusk.v; }, setNight, get night() { return dusk.night; }, set onNight(f) { onNight = f; }, set onNightLevel(f) { onNightLevel = f; }, setKind: (k) => seal.setKind(k), get kind() { return seal.kind; }, objects2: { lantern, tips },
+    setView, get view() { return view; }, set onView(f) { onView = f; }, pick, writeSand, renderMirror, toggleItem, worn, act, motion, ctl, set onCue(f) { onCue = f; }, get sandWriting() { return sandW; }, setDusk, get dusk() { return dusk.v; }, setNight, get night() { return dusk.night; }, set onNight(f) { onNight = f; }, set onNightLevel(f) { onNightLevel = f; }, setKind: (k) => seal.setKind(k), get kind() { return seal.kind; }, objects2: { lantern, tips, fire, bottle, castle, crab2 },
+    setNightTarget: (v) => { dusk.to = v; if (dusk.nightForced === null) dusk.nightForced = dusk.night; if (v === 0) dusk.forced = 0; },
+    setFire: (on) => { fireWant = on && dusk.night > 0.25 ? 1 : 0; return fireWant === 1; }, get fireOn() { return fireWant === 1; },
+    showBottle: (on) => { bottle.visible = on; }, get bottleVisible() { return bottle.visible; },
+    setCastleLevel: (n) => castle.userData.setLevel(n), addCrabFriend: () => { crab2.visible = true; },
     Q, qName, renderer, camera, refCam, beach, look, setLook, stampTest, groundFromStage, screenOf, stageOf,
     objects: { crab, shells, pebbles, parasol, seal }, motion,
     get layoutInfo() { return L; }, get wave() { return wave; }, get simT() { return simT; },

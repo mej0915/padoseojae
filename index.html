@@ -23,7 +23,10 @@
       <button type="button" id="rail-motion" aria-expanded="false" aria-controls="pane-motion"><i aria-hidden="true">✨</i><span>동작</span></button>
       <button type="button" id="rail-dress" aria-expanded="false" aria-controls="pane-dress"><i aria-hidden="true">🎀</i><span>꾸미기</span></button>
       <button type="button" id="act-sand"><i aria-hidden="true">✍️</i><span>모래글씨</span></button>
+      <button type="button" id="act-daynight" aria-pressed="false"><i aria-hidden="true">🌙</i><span>밤으로</span></button>
+      <button type="button" id="act-fire" aria-pressed="false" hidden><i aria-hidden="true">🔥</i><span>모닥불</span></button>
     </nav>
+    <button type="button" class="star-fall" id="star-fall" hidden aria-label="별똥별에 소원 빌기"><span></span></button>
     <div class="pane" id="pane-motion" hidden role="menu" aria-label="물범 동작">
       <button type="button" data-motion="page"><i>📖</i>책장 넘기기</button>
       <button type="button" data-motion="coffee"><i>☕</i>커피 한 모금</button>
@@ -32,6 +35,7 @@
       <button type="button" data-motion="doze"><i>😪</i>꾸벅 졸기</button>
       <button type="button" data-motion="clap"><i>👏</i>박수</button>
       <button type="button" data-motion="hello"><i>👋</i>손 흔들기</button>
+      <button type="button" data-motion="tteok"><i>🍢</i>가래떡 굽기 (밤)</button>
     </div>
     <div class="pane" id="pane-dress" hidden role="menu" aria-label="꾸미기">
       <button type="button" id="act-cap" aria-pressed="true"><i>🧢</i>모자</button>
@@ -51,6 +55,23 @@
     </div>
 
     <div class="yt-box" id="yt-box" hidden><div class="yt-frame"></div></div>
+
+    <section class="dlg" id="dlg-wish" hidden role="dialog" aria-label="별똥별 소원">
+      <div class="card">
+        <h2>🌠 별똥별에 소원을 빌어요</h2>
+        <textarea id="wish-text" rows="3" maxlength="80" placeholder="조용히 적어 두면 별이 데려가요 (이 기기에만 저장)"></textarea>
+        <p class="hint" id="wish-count"></p>
+        <div class="btns"><button type="button" id="wish-close">닫기</button><button type="button" id="wish-ok" class="main">별에 실어 보내기</button></div>
+      </div>
+    </section>
+    <section class="dlg" id="dlg-bottle" hidden role="dialog" aria-label="유리병 편지">
+      <div class="card bottlecard">
+        <h2>🍾 파도가 데려온 유리병 편지</h2>
+        <blockquote id="bottle-quote"></blockquote>
+        <p class="hint" id="bottle-src"></p>
+        <div class="btns"><button type="button" id="bottle-close" class="main">바다로 돌려보내기</button></div>
+      </div>
+    </section>
 
     <section class="dlg" id="dlg-timer" hidden role="dialog" aria-label="독서 타이머">
       <div class="card timercard">
