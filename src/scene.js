@@ -7,7 +7,7 @@ import { createSeal } from './seal.js';
 import { createMotionPlayer } from './motions.js';
 import * as PR from './props.js';
 import { createCap, createHeadset } from './chibi.js';
-import { createSeasonHat } from './hats.js';
+import { createSeasonHat, createScarf } from './hats.js';
 import { createPuppy } from './puppy.js';
 import { textToCanvas, FONTS, sandMask } from './sandtext.js';
 import { createBoat, createIsland, createGull, createCrab, createMotes } from './life.js';
@@ -147,8 +147,9 @@ export function createScene(canvas, audio = null) {
   const puppy = createPuppy(); puppy.position.set(SPOT.x + 0.68, 0.03, SPOT.z + 0.26); puppy.rotation.y = -0.45; puppy.scale.setScalar(1.05); scene.add(puppy);
   const sealSet = createHeadset(0.265); sealSet.position.set(0, 0.13, 0); sealSet.visible = false; seal.bones.head.add(sealSet);
   const SX = seal.extras;
+  const sealScarf = createScarf(); sealScarf.visible = false; seal.bones.spine.add(sealScarf);   // S9: 담요 대신 목도리
   const worn = { cap: true, blanket: false, headset: false, glasses: false };
-  const applyWorn = () => { sealCap.visible = worn.cap; sealSet.visible = worn.headset; SX.blanket.visible = worn.blanket; SX.glasses.visible = worn.glasses; };
+  const applyWorn = () => { sealCap.visible = worn.cap; sealSet.visible = worn.headset; SX.blanket.visible = false; sealScarf.visible = worn.blanket; SX.glasses.visible = worn.glasses; };
   applyWorn();
   let blinkT = 2.2;
   const sealChar = { group: seal.group, head: seal.bones.head, front: -1,
@@ -343,7 +344,7 @@ export function createScene(canvas, audio = null) {
       if (best) setView('focus', best); return;
     }
     if (view === 'seat') {      // S7: 내 자리에서 바로 조개 누르기
-      const i = shellAt(mx, my); if (i >= 0) { shellHop[i] = 1; pick.onShell?.(i); return; }
+      const i = shellAt(mx, my); if (i >= 0) { shellHop[i] = 1; puppy.userData.runTo(shells[i].position.x, shells[i].position.z); pick.onShell?.(i); return; }   // S9: 몽글이가 조개로 뛰어감
       tmp2.copy(puppy.position).setY(0.3); const [px, py] = screenOf(tmp2);
       if (Math.hypot(px - mx, py - my) < Math.max(45, Math.min(W, H) * 0.07)) { puppy.userData.poke(); pick.onPuppy?.(); }
       return;

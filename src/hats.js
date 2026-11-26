@@ -28,7 +28,7 @@ function tex(draw, w = 256, h = 256, rep = [1, 1]) {
 }
 const rng = (s) => () => ((s = (s * 16807) % 2147483647) / 2147483647);
 
-function knit(base, dark, light) {
+export function knit(base, dark, light) {
   return tex((x, w, h) => {
     x.fillStyle = base; x.fillRect(0, 0, w, h);
     const cols = 16, cw = w / cols, r = rng(3);
@@ -43,12 +43,12 @@ function knit(base, dark, light) {
 
 export function createBeanie() {
   const g = new THREE.Group(); g.name = 'beanie';
-  const body = new THREE.Mesh(shell(0.2, 0.022, 0.035), paintMat('#ffffff', { map: knit('#d96a5c', 'rgba(110,30,30,.35)', 'rgba(255,200,180,.25)'), grain: 10, tint: '#9a6a9a', rim: 0.25 }));
+  const body = new THREE.Mesh(shell(0.2, 0.045, 0.05), paintMat('#ffffff', { map: knit('#d96a5c', 'rgba(110,30,30,.35)', 'rgba(255,200,180,.25)'), grain: 10, tint: '#9a6a9a', rim: 0.25, side: THREE.DoubleSide }));   // S9: 더 크고 깊게 (뒤통수까지 덮음)
   body.castShadow = true; addOutline(body, LINE, 0.006, 16); g.add(body);
   // 접어 올린 단: 머리를 두르는 두툼한 띠
-  const y0 = 0.185, y1 = 0.245;
+  const y0 = 0.195, y1 = 0.26;
   const cuffPts = [];
-  for (let i = 0; i <= 8; i++) { const t = i / 8, y = y0 + (y1 - y0) * t; cuffPts.push(new THREE.Vector2(headR(y) + 0.034 + Math.sin(t * Math.PI) * 0.01, y)); }
+  for (let i = 0; i <= 8; i++) { const t = i / 8, y = y0 + (y1 - y0) * t; cuffPts.push(new THREE.Vector2(headR(y) + 0.058 + Math.sin(t * Math.PI) * 0.014, y)); }
   const cuff = new THREE.Mesh(new THREE.LatheGeometry(cuffPts, 40), paintMat('#ffffff', { map: knit('#f3e6cf', 'rgba(120,90,60,.3)', 'rgba(255,255,255,.35)'), grain: 10, tint: '#9a86c4', rim: 0.2, side: THREE.DoubleSide }));
   cuff.castShadow = true; addOutline(cuff, LINE, 0.006, 16); g.add(cuff);
   // 방울: 털실 뭉치처럼 울퉁불퉁
@@ -56,9 +56,10 @@ export function createBeanie() {
   for (let i = 0; i < p.count; i++) { const v = new THREE.Vector3().fromBufferAttribute(p, i); v.multiplyScalar(1 + (r() - 0.5) * 0.18); p.setXYZ(i, v.x, v.y, v.z); }
   pg.computeVertexNormals();
   const pom = new THREE.Mesh(pg, paintMat('#f3e6cf', { grain: 40, grainAmt: 0.3, tint: '#9a86c4', rim: 0.3 }));
-  pom.position.set(0, 0.43, 0.02); pom.castShadow = true; addOutline(pom, LINE, 0.005, 12); g.add(pom);
-  g.rotation.x = 0.13;            // 이마 쪽은 살짝 올라가고 뒤로 눌러 쓴 모양
-  g.scale.z = 0.9;                // 머리처럼 앞뒤가 조금 납작
+  pom.position.set(0, 0.46, 0.02); pom.scale.setScalar(1.25); pom.castShadow = true; addOutline(pom, LINE, 0.005, 12); g.add(pom);
+  g.rotation.x = 0.06;            // 이마 쪽은 살짝 올라가고 뒤로 눌러 쓴 모양
+  g.scale.setScalar(1.08);
+  g.scale.z = 0.98;               // 머리처럼 앞뒤가 조금 납작 (뒤통수가 비치지 않게 넉넉히)
   return g;
 }
 
@@ -92,3 +93,24 @@ export function isWinter(date = new Date()) {
   const m = date.getMonth() + 1; return m >= 11 || m <= 2;
 }
 export function createSeasonHat() { return isWinter() ? createBeanie() : createSunHat(); }
+
+/** S9 목도리: 목에 두 번 감고, 한쪽 끝이 어깨 앞으로 늘어지며 끝에 술이 달림 (물범 spine 뼈 기준) */
+export function createScarf() {
+  const g = new THREE.Group(); g.name = 'scarf';
+  const stripes = tex((x, w, h) => {
+    x.fillStyle = '#f1e4c8'; x.fillRect(0, 0, w, h);
+    for (let i = 0; i < 6; i++) { x.fillStyle = i % 2 ? '#5f8fb8' : '#e3a24f'; x.fillRect(0, i * h / 6 + h / 24, w, h / 12); }
+    for (let i = 0; i < 64; i++) { x.fillStyle = 'rgba(0,0,0,.08)'; x.fillRect(i * w / 64, 0, w / 128, h); }   // 골지
+  }, 256, 256, [6, 1]);
+  const mat = paintMat('#ffffff', { map: stripes, grain: 12, tint: '#9a86c4', rim: 0.25, side: THREE.DoubleSide });
+  const wrap = (y, r, tube, tilt) => { const m = new THREE.Mesh(new THREE.TorusGeometry(r, tube, 12, 40), mat); m.rotation.x = Math.PI / 2 + tilt; m.position.y = y; m.scale.set(1, 1, 1); m.castShadow = true; addOutline(m, LINE, 0.006, 14); g.add(m); return m; };
+  wrap(0.12, 0.3, 0.05, 0.08); wrap(0.185, 0.285, 0.045, -0.06);
+  // 늘어진 끝: 어깨 앞쪽(얼굴 쪽 -z, 오른쪽 +x)으로 살짝 휘어 내려옴
+  const tailG = new THREE.BoxGeometry(0.11, 0.24, 0.035, 2, 8, 1), tp = tailG.attributes.position;
+  for (let i = 0; i < tp.count; i++) { const y = tp.getY(i), k = (0.12 - y) / 0.24; tp.setZ(i, tp.getZ(i) - k * k * 0.05); tp.setX(i, tp.getX(i) * (1 + k * 0.15)); }
+  tailG.computeVertexNormals();
+  const tail = new THREE.Mesh(tailG, mat); tail.position.set(0.17, 0.01, -0.24); tail.rotation.set(0.15, 0.55, 0.12); tail.castShadow = true; addOutline(tail, LINE, 0.005, 14); g.add(tail);
+  for (let i = 0; i < 5; i++) { const f = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.004, 0.04, 5), paintMat('#e3a24f')); f.position.set(-0.044 + i * 0.022, -0.14, 0); tail.add(f); }
+  g.scale.z = 0.9;
+  return g;
+}

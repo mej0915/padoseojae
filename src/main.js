@@ -137,7 +137,7 @@ function openShell(n, mine, who) {
   $('dlg-shell').hidden = false;
 }
 S.pick.onPuppy = () => { sound(true); sfx.yip(); };
-S.pick.onShell = (i) => { shellId = i; sfx.shell(); setTimeout(() => openShell(notes[i], true), 380); };
+S.pick.onShell = (i) => { shellId = i; sfx.shell(); setTimeout(() => openShell(notes[i], true), 1300); };   // 몽글이가 조개까지 뛰어가는 걸 보고 나서 쪽지 열기
 S.pick.onOther = (os) => openShell(os, false, os.who);
 $('shell-cancel').addEventListener('click', () => { $('dlg-shell').hidden = true; });
 $('shell-del').addEventListener('click', () => { delete notes[shellId]; saveNotes(); $('dlg-shell').hidden = true; tip('쪽지를 지웠어요'); });

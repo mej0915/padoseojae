@@ -2,3 +2,4 @@ node_modules/
 dist/
 dist8/
 artifact.html
+node_modules
