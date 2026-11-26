@@ -241,6 +241,10 @@ $('btn-quality').addEventListener('click', () => {
 });
 function fillBtn() { $('btn-fill').hidden = innerWidth / innerHeight <= MAX_ASPECT + 0.01; }
 fillBtn(); addEventListener('resize', fillBtn);
+/* S12: 휴대폰을 가로로 눕히면 양옆 빈 띠 없이 화면을 꽉 채운다 */
+{ const mq = matchMedia('(orientation: landscape) and (max-height: 500px)'); let auto = false;
+  const apply = () => { if (params.get('fill')) return; if (mq.matches && !document.body.classList.contains('fill')) { document.body.classList.add('fill'); auto = true; } else if (!mq.matches && auto) { document.body.classList.remove('fill'); auto = false; } $('btn-fill').setAttribute('aria-pressed', String(document.body.classList.contains('fill'))); dispatchEvent(new Event('resize')); };
+  mq.addEventListener?.('change', apply); apply(); }
 $('btn-fill').addEventListener('click', () => { const on = document.body.classList.toggle('fill'); $('btn-fill').setAttribute('aria-pressed', String(on)); dispatchEvent(new Event('resize')); });
 $('hud').hidden = params.get('hud') !== '1';
 setInterval(() => {

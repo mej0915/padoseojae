@@ -104,3 +104,13 @@ button[hidden], .tip[hidden] { display: none; }
 #wish-text { width: 100%; font: 19px/1.35 "Gaegu", "Nanum Pen Script", sans-serif; }
 .rail #act-daynight[aria-pressed="true"] { background: #2f3360; color: #fff6dc; } .rail #act-daynight[aria-pressed="true"] span, .rail #act-fire[aria-pressed="true"] span { color: #fff6dc; }
 .rail #act-fire[aria-pressed="true"] { background: #ffe1c4; box-shadow: 0 0 0 2px #ff9a4a, 0 0 18px rgba(255,150,70,.6); }
+/* S12: 휴대폰 가로 화면 (높이가 낮을 때): 단추를 작게, 오른쪽 단추줄은 타이머 아래부터, 음악 막대는 왼쪽 아래로 */
+@media (orientation: landscape) and (max-height: 500px) {
+  .bar { gap: 5px; } .bar button, #btn-timer { min-height: 34px; padding: 0 10px; font-size: 12.5px; }
+  .rail { top: calc(max(8px, env(safe-area-inset-top)) + 48px); transform: none; gap: 4px; }
+  .rail button { width: 46px; min-height: 44px; border-radius: 14px; padding: 2px; } .rail button i { font-size: 18px; } .rail button span { font-size: 9px; }
+  .pane { top: calc(max(8px, env(safe-area-inset-top)) + 48px); transform: none; right: calc(max(10px, env(safe-area-inset-right)) + 54px); max-height: calc(100% - 60px); overflow-y: auto; }
+  .pane button { min-height: 34px; font-size: 13.5px; }
+  .np { top: auto !important; right: auto; left: max(10px, env(safe-area-inset-left)); bottom: max(8px, env(safe-area-inset-bottom)); }
+  .yt-box { top: calc(max(8px, env(safe-area-inset-top)) + 48px); }
+}
