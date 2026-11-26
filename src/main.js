@@ -60,7 +60,7 @@ function syncItems() {
 async function toggle(id) {
   const on = S.toggleItem(id);
   if (id === 'headset') {
-    if (on) { await sound(true); audio.setBgScale(0.3); music.start(); } else { music.hide(); audio.setBgScale(1); }
+    if (on) { await sound(true); audio.setBgScale(musicBg()); music.start(); } else { music.hide(); audio.setBgScale(1); }
     $('np').hidden = !on;
   } else sfx.cloth();
   if (id === 'headset') sfx.click();
@@ -69,7 +69,14 @@ async function toggle(id) {
 for (const id of ITEMS) $('act-' + id).addEventListener('click', () => toggle(id));
 document.querySelectorAll('[data-item]').forEach((b) => b.addEventListener('click', () => toggle(b.dataset.item)));
 music.onChange((m) => { $('np-title').textContent = m.title; $('np-src').textContent = m.source === 'youtube' ? '유튜브 · 헤드셋 음악' : '독서 음악'; $('np-prev').setAttribute('aria-label', music.source === 'youtube' && music.single ? '30초 뒤로' : '이전 곡'); $('np-next').setAttribute('aria-label', music.source === 'youtube' && music.single ? '30초 앞으로' : '다음 곡'); $('np-play').textContent = m.playing ? '⏸' : '▶'; $('np-play').setAttribute('aria-label', m.playing ? '일시정지' : '다시 재생'); $('np').classList.toggle('paused', !m.playing); });
-$('np-play').addEventListener('click', () => { if (music.playing) { music.stop(); audio.setBgScale(1); } else { music.start(); audio.setBgScale(0.3); } sfx.click(); });
+$('np-play').addEventListener('click', () => { if (music.playing) { music.stop(); audio.setBgScale(1); } else { music.start(); audio.setBgScale(musicBg()); } sfx.click(); });
+// S9: 음악 들을 때 파도 소리를 켜 둘지(작게) 끌지 고르기. 이 기기에 기억
+const WAVE_KEY = 'padoseojae.wavesWithMusic';
+let wavesWithMusic = true; try { wavesWithMusic = localStorage.getItem(WAVE_KEY) !== '0'; } catch { /* */ }
+function musicBg() { return wavesWithMusic ? 0.35 : 0; }
+const syncWave = () => { $('np-wave').setAttribute('aria-pressed', String(wavesWithMusic)); $('np-wave').title = wavesWithMusic ? '파도 소리 켜짐 (누르면 끔)' : '파도 소리 꺼짐 (누르면 켬)'; };
+syncWave();
+$('np-wave').addEventListener('click', () => { wavesWithMusic = !wavesWithMusic; try { localStorage.setItem(WAVE_KEY, wavesWithMusic ? '1' : '0'); } catch { /* */ } syncWave(); if (music.playing) audio.setBgScale(musicBg()); sfx.click(); tip(wavesWithMusic ? '음악과 함께 파도 소리도 들려요' : '음악만 들려요 (파도 소리 끔)'); });
 $('np-prev').addEventListener('click', () => music.prev()); $('np-next').addEventListener('click', () => music.next());
 syncItems();
 

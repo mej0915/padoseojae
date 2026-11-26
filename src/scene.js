@@ -62,6 +62,9 @@ void main(){
   o.rgb *= mix(shadowTint, lightTint, smoothstep(0.2, 0.75, l2));
   float sunD = length((uv - uSun) * vec2(uRes.x / uRes.y, 1.0));
   o.rgb += vec3(1.0, 0.72, 0.42) * (0.10 * exp(-sunD * 2.4) + 0.08 * exp(-sunD * 7.0));
+  // S9 공기 원근: 멀어질수록(화면 위쪽, 수평선 쪽) 채도를 조금씩 낮추고 하늘빛으로 살짝 옅게 — 부드러운 파스텔 느낌
+  { float farK = smoothstep(uFocus + 0.04, uFocus + 0.42, uv.y); float lm = dot(o.rgb, vec3(0.3, 0.59, 0.11));
+    o.rgb = mix(o.rgb, mix(vec3(lm), o.rgb, 0.62) * 0.96 + vec3(0.05, 0.045, 0.06), farK * 0.55); }
   // S8 노을: 머무는 시간이 길어질수록(uDusk 0→1) 하늘은 주황·분홍·보라로, 땅은 따뜻하고 낮게, 그늘은 보랏빛으로
   if (uDusk > 0.001) {
     float l3 = dot(o.rgb, vec3(0.3, 0.59, 0.11));

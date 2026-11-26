@@ -14,26 +14,26 @@ export function createPuppy() {
   const g = new THREE.Group(); g.name = 'puppy';
   const body = new THREE.Group(); g.add(body);           // 숨쉬기·점프는 여기
   // 몸통: 아래가 넓은 배 모양으로 앉은 자세
-  const torso = M(new THREE.SphereGeometry(0.17, 28, 20), CREAM); torso.scale.set(1, 1.08, 0.95); torso.position.y = 0.17; body.add(torso);
+  const torso = M(new THREE.SphereGeometry(0.17, 28, 20), CREAM); torso.scale.set(1.14, 0.98, 1.0); torso.position.y = 0.155;   // 말랑하게 퍼진 몸 body.add(torso);
   const belly = M(new THREE.SphereGeometry(0.12, 20, 14), '#fffaf0', {}, 0); belly.scale.set(1, 1.1, 0.5); belly.position.set(0, 0.15, 0.1); body.add(belly);
   // 뒷다리(앉아서 옆으로 나온 허벅지)와 앞발
   for (const s of [-1, 1]) {
-    const thigh = M(new THREE.SphereGeometry(0.085, 18, 12), CREAM); thigh.scale.set(0.8, 0.7, 1.15); thigh.position.set(s * 0.13, 0.07, 0.0); body.add(thigh);
+    const thigh = M(new THREE.SphereGeometry(0.085, 18, 12), CREAM); thigh.scale.set(0.85, 0.65, 1.2); thigh.position.set(s * 0.15, 0.06, 0.0); body.add(thigh);
     const foot = M(new THREE.SphereGeometry(0.045, 14, 10), CREAM); foot.scale.set(1, 0.6, 1.4); foot.position.set(s * 0.14, 0.025, 0.08); body.add(foot);
-    const leg = M(new THREE.CapsuleGeometry(0.038, 0.1, 6, 12), CREAM); leg.position.set(s * 0.06, 0.08, 0.12); body.add(leg);
-    const paw = M(new THREE.SphereGeometry(0.044, 14, 10), CREAM); paw.scale.set(1, 0.65, 1.25); paw.position.set(s * 0.06, 0.025, 0.14); body.add(paw);
+    const leg = M(new THREE.CapsuleGeometry(0.038, 0.1, 6, 12), CREAM); leg.position.set(s * 0.085, 0.08, 0.12); leg.rotation.z = s * 0.28; body.add(leg);   // 앞다리를 살짝 벌려 힘 뺀 자세
+    const paw = M(new THREE.SphereGeometry(0.044, 14, 10), CREAM); paw.scale.set(1, 0.65, 1.25); paw.position.set(s * 0.11, 0.025, 0.145); paw.rotation.y = s * 0.4; body.add(paw);
   }
   // 꼬리: 동글게 말린 털뭉치
   const tail = new THREE.Group(); tail.position.set(0, 0.12, -0.15); body.add(tail);
   const tailM = M(new THREE.TorusGeometry(0.05, 0.03, 10, 18, Math.PI * 1.5), CREAM); tailM.rotation.set(0, Math.PI / 2, 0.4); tailM.position.set(0, 0.05, -0.03); tail.add(tailM);
   // 머리
-  const head = new THREE.Group(); head.position.set(0, 0.37, 0.02); body.add(head);
+  const head = new THREE.Group(); head.position.set(0, 0.345, 0.03); body.add(head);   // 목 없이 몸에 폭 얹힌 머리
   const skull = M(new THREE.SphereGeometry(0.175, 30, 22), CREAM); skull.scale.set(1.18, 0.92, 1); head.add(skull);
   // S9: 살짝 멍한 표정 — 아주 작은 점 눈을 멀리·낮게, 반짝임 없음, ω 입, 혀끝 살짝
   for (const s of [-1, 1]) {   // 통통한 볼
     const cheek = M(new THREE.SphereGeometry(0.085, 16, 12), CREAM, {}, 0); cheek.position.set(s * 0.09, -0.065, 0.07); head.add(cheek);
     const blush = new THREE.Mesh(new THREE.CircleGeometry(0.03, 16), new THREE.MeshBasicMaterial({ color: '#f4a4a0', transparent: true, opacity: 0.75 })); blush.scale.y = 0.7; blush.position.set(s * 0.122, -0.06, 0.128); blush.rotation.y = s * 0.6; head.add(blush);
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.0135, 12, 10), dark); eye.scale.set(1, 1.1, 0.5); eye.position.set(s * 0.083, -0.012, 0.142); eye.rotation.y = s * 0.5; eye.name = s < 0 ? 'eyeL' : 'eyeR'; head.add(eye);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.016, 12, 10), dark); eye.scale.set(1, 1.15, 0.6); eye.position.set(s * 0.092, -0.01, 0.158); eye.rotation.y = s * 0.55; eye.name = s < 0 ? 'eyeL' : 'eyeR'; head.add(eye);   // 머리 겉면 위 (S9 확대 후 묻혔던 것 고침)
     const arc = new THREE.Mesh(new THREE.TorusGeometry(0.012, 0.0028, 6, 10, Math.PI), dark); arc.rotation.z = Math.PI; arc.position.set(s * 0.012, -0.072, 0.176); head.add(arc);   // ω
   }
   const muzzle = M(new THREE.SphereGeometry(0.05, 18, 12), '#fffaf0', {}, 0); muzzle.scale.set(1.3, 0.75, 0.75); muzzle.position.set(0, -0.06, 0.135); head.add(muzzle);
@@ -42,7 +42,7 @@ export function createPuppy() {
   // 처진 귀 (끝이 살구색)
   const ears = [-1, 1].map((s) => {
     const pivot = new THREE.Group(); pivot.position.set(s * 0.13, 0.07, 0.0); head.add(pivot);
-    const ear = M(new THREE.SphereGeometry(0.07, 18, 12), APRICOT); ear.scale.set(0.62, 1.25, 0.4); ear.position.set(s * 0.025, -0.07, 0); ear.rotation.z = s * 0.25; pivot.add(ear);
+    const ear = M(new THREE.SphereGeometry(0.07, 18, 12), APRICOT); ear.scale.set(0.66, 1.45, 0.42); ear.position.set(s * 0.025, -0.07, 0); ear.rotation.z = s * 0.25; pivot.add(ear);
     pivot.rotation.z = s * 0.15; return { pivot, s, base: s < 0 ? 0.15 : 0.32 };   // 한쪽 귀가 더 처져 멍한 느낌
   });
   // 정수리 털 한 가닥
@@ -78,7 +78,8 @@ export function createPuppy() {
       else if (run.phase === 'turn') { let dy = home.yaw - g.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); g.rotation.y += dy * Math.min(1, dt * 6); if (Math.abs(dy) < 0.02) run = null; }
     }
     const moving = run && (run.phase === 'go' || run.phase === 'back');
-    const breath = Math.sin(t * 2.2) * 0.012;
+    const breath = Math.sin(t * 1.7) * 0.016;
+    body.rotation.z = Math.sin(t * 0.7) * 0.045;            // 느슨하게 좌우로 흔들흔들
     body.scale.set(1 + breath * 0.5, 1 + breath, 1 + breath * 0.5);
     hop = Math.max(0, hop - dt * 2.2); const h = hop > 0 ? Math.sin(Math.PI * (1 - hop)) : 0;
     body.position.y = h * 0.13 + (moving ? Math.abs(Math.sin(runHop)) * 0.06 : 0); body.rotation.x = moving ? 0.18 + Math.sin(runHop * 2) * 0.05 : 0;
@@ -91,9 +92,9 @@ export function createPuppy() {
     tilt += (tiltTo - tilt) * Math.min(1, dt * 4); look += (lookTo - look) * Math.min(1, dt * 2.5);
     const sniff = run && run.phase === 'sniff' ? 1 : 0;
     head.rotation.set(-0.05 + Math.sin(t * 0.9) * 0.03 - h * 0.2 + sniff * (0.35 + Math.sin(t * 14) * 0.05), look * -0.65 * (run ? 0 : 1), tilt + 0.12);   // 늘 살짝 갸웃
-    for (const e of ears) e.pivot.rotation.z = e.s * (e.base + Math.max(0, Math.sin(t * 1.3 + e.s)) * 0.06 + h * 0.5) - tilt * 0.4;
+    for (const e of ears) { e.pivot.rotation.z = e.s * (e.base + Math.max(0, Math.sin(t * 1.3 + e.s)) * 0.06 + h * 0.5) - tilt * 0.6 - Math.sin(t * 0.7 - 0.5) * 0.12; e.pivot.rotation.x = Math.sin(t * 1.1 + e.s) * 0.08; }   // 귀가 한 박자 늦게 출렁
     if ((blinkT -= dt) < 0) blinkT = 2.5 + Math.random() * 4;
-    const closed = blinkT < 0.12 ? 0.15 : 1; for (const e of eyes) e.scale.y = closed;
+    const closed = blinkT < 0.12 ? 0.15 : 1.15; for (const e of eyes) e.scale.y = closed;
   };
   return g;
 }

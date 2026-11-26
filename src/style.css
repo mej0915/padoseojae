@@ -80,9 +80,14 @@ button[hidden], .tip[hidden] { display: none; }
   .tip { white-space: normal; width: max-content; max-width: calc(100vw - 28px); text-align: center; border-radius: 16px; top: calc(max(10px, env(safe-area-inset-top)) + 104px); }
   .toast { font-size: 14.5px; white-space: normal; width: max-content; max-width: calc(100vw - 32px); text-align: center; }
   .timer { top: calc(max(10px, env(safe-area-inset-top)) + 54px); }
+  .np { top: calc(max(10px, env(safe-area-inset-top)) + 106px) !important; z-index: 3; }
+  .np-text small { display: none; } .np { gap: 5px; padding: 5px 6px 5px 10px; } .np button { min-width: 34px; padding: 0 5px; }
 }
 @media (max-height: 430px) { .rail { transform: translateY(-50%); gap: 4px; } .rail button { min-height: 48px; width: 50px; } .pane button { min-height: 36px; } }
 
 /* S9 유튜브 헤드셋 음악 창 (규칙상 200×200 이상 보이게) */
 .yt-box { position: absolute; left: max(10px, env(safe-area-inset-left)); top: calc(max(10px, env(safe-area-inset-top)) + 54px); width: 200px; height: 200px; border-radius: 16px; overflow: hidden; background: #2b2220; box-shadow: 0 4px 18px rgba(60, 40, 30, .3); border: 3px solid rgba(251, 243, 230, .95); }
 .yt-box iframe { display: block; width: 200px; height: 200px; }
+.np #np-wave[aria-pressed="false"] { opacity: .5; text-decoration: line-through; }
+@media (max-width: 480px) { .yt-box { top: calc(max(10px, env(safe-area-inset-top)) + 160px); } }
+.np { z-index: 3; }

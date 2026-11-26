@@ -97,11 +97,8 @@ export function createSeasonHat() { return isWinter() ? createBeanie() : createS
 /** S9 목도리: 목에 두 번 감고, 한쪽 끝이 어깨 앞으로 늘어지며 끝에 술이 달림 (물범 spine 뼈 기준) */
 export function createScarf() {
   const g = new THREE.Group(); g.name = 'scarf';
-  const stripes = tex((x, w, h) => {
-    x.fillStyle = '#f1e4c8'; x.fillRect(0, 0, w, h);
-    for (let i = 0; i < 6; i++) { x.fillStyle = i % 2 ? '#5f8fb8' : '#e3a24f'; x.fillRect(0, i * h / 6 + h / 24, w, h / 12); }
-    for (let i = 0; i < 64; i++) { x.fillStyle = 'rgba(0,0,0,.08)'; x.fillRect(i * w / 64, 0, w / 128, h); }   // 골지
-  }, 256, 256, [6, 1]);
+  const base = knit('#d96a5c', 'rgba(110,30,30,.35)', 'rgba(255,200,180,.25)');   // S9: 비니와 같은 빨간 니트 + 흰 줄 두 개
+  const stripes = tex((x, w, h) => { x.drawImage(base.image, 0, 0, w, h); x.fillStyle = 'rgba(246,236,220,.95)'; x.fillRect(0, h * 0.2, w, h * 0.09); x.fillRect(0, h * 0.7, w, h * 0.09); }, 256, 256, [6, 1]);
   const mat = paintMat('#ffffff', { map: stripes, grain: 12, tint: '#9a86c4', rim: 0.25, side: THREE.DoubleSide });
   const wrap = (y, r, tube, tilt) => { const m = new THREE.Mesh(new THREE.TorusGeometry(r, tube, 12, 40), mat); m.rotation.x = Math.PI / 2 + tilt; m.position.y = y; m.scale.set(1, 1, 1); m.castShadow = true; addOutline(m, LINE, 0.006, 14); g.add(m); return m; };
   wrap(0.12, 0.3, 0.05, 0.08); wrap(0.185, 0.285, 0.045, -0.06);
@@ -110,7 +107,8 @@ export function createScarf() {
   for (let i = 0; i < tp.count; i++) { const y = tp.getY(i), k = (0.12 - y) / 0.24; tp.setZ(i, tp.getZ(i) - k * k * 0.05); tp.setX(i, tp.getX(i) * (1 + k * 0.15)); }
   tailG.computeVertexNormals();
   const tail = new THREE.Mesh(tailG, mat); tail.position.set(0.17, 0.01, -0.24); tail.rotation.set(0.15, 0.55, 0.12); tail.castShadow = true; addOutline(tail, LINE, 0.005, 14); g.add(tail);
-  for (let i = 0; i < 5; i++) { const f = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.004, 0.04, 5), paintMat('#e3a24f')); f.position.set(-0.044 + i * 0.022, -0.14, 0); tail.add(f); }
+  { const band = new THREE.Mesh(new THREE.BoxGeometry(0.118, 0.035, 0.04), paintMat('#f3e6cf', { grain: 12 })); band.position.set(0, -0.09, 0.0); tail.add(band); }   // 끝단 흰 줄 (비니 접은 단과 맞춤)
+  for (let i = 0; i < 5; i++) { const f = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.004, 0.04, 5), paintMat('#f6ecdc')); f.position.set(-0.044 + i * 0.022, -0.14, 0); tail.add(f); }
   g.scale.z = 0.9;
   return g;
 }
