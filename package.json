@@ -1,0 +1,20 @@
+{
+  "name": "padoseojae-s7-polish",
+  "version": "0.0.1",
+  "private": true,
+  "description": "파도서재 S7 완성도 개선 (물범 동작·소리, 모래글씨, 조개, 타이머)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview --host",
+    "artifact": "vite build && node tools/inline.mjs dist artifact.html",
+    "build:pages": "vite build --outDir docs --emptyOutDir && touch docs/.nojekyll"
+  },
+  "dependencies": {
+    "three": "0.170.0"
+  },
+  "devDependencies": {
+    "vite": "6.0.7"
+  }
+}

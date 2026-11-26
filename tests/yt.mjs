@@ -1,0 +1,20 @@
+import { createRequire } from 'node:module';
+import { spawn } from 'node:child_process';
+const { chromium } = createRequire(import.meta.url)('playwright');
+const PORT = '4286', out = process.argv[2];
+const srv = spawn('npx', ['vite', 'preview', '--port', PORT, '--strictPort'], { stdio: 'ignore' });
+await new Promise((r) => setTimeout(r, 2000));
+const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--autoplay-policy=no-user-gesture-required'] });
+const c = await b.newContext({ viewport: { width: 1280, height: 800 } });
+// 이 시험 환경은 유튜브에 접속할 수 없어서, 유튜브 플레이어 API를 흉내 낸 가짜로 연결 동작만 확인
+await c.route('https://www.youtube.com/iframe_api', (r) => r.fulfill({ contentType: 'text/javascript', body: `window.YT={PlayerState:{PLAYING:1,BUFFERING:3,ENDED:0,PAUSED:2},Player:function(el,o){const f=document.createElement('div');f.style.cssText='width:200px;height:200px;background:#c33';f.textContent='YT '+(o.videoId||o.playerVars.list);el.replaceWith(f);window.__ytVars=o.playerVars;window.__ytId=o.videoId;this.playVideo=()=>o.events.onStateChange({data:1});this.pauseVideo=()=>o.events.onStateChange({data:2});this.getVideoData=()=>({title:'Test video'});this.setVolume=()=>{};this.seekTo=()=>{};this.getCurrentTime=()=>0;this.getDuration=()=>100;setTimeout(()=>o.events.onReady(),50);}};setTimeout(()=>window.onYouTubeIframeAPIReady(),10);` }));
+const p = await c.newPage(); const errs = []; p.on('pageerror', (e) => errs.push(String(e)));
+await p.goto(`http://localhost:${PORT}/?quality=low`, { waitUntil: 'load' });
+await p.waitForFunction(() => window.__s5 && window.__s5.stats().firstFrameMs !== null, null, { timeout: 90000 });
+await p.waitForTimeout(6000);
+await p.click('#act-dress').catch(() => {}); await p.waitForTimeout(300);
+await p.evaluate(() => document.getElementById('act-headset').click());
+await p.waitForTimeout(8000);
+console.log(JSON.stringify(await p.evaluate(() => ({ src: window.__ui.music.source, playing: window.__ui.music.playing, title: window.__ui.music.title, id: window.__ytId, vars: window.__ytVars, box: !document.getElementById('yt-box').hidden }))), errs);
+await p.screenshot({ path: `${out}/yt.jpg`, type: 'jpeg', quality: 80 });
+await b.close(); srv.kill();

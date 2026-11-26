@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>파도서재</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Nanum+Pen+Script&display=swap" />
+</head>
+<body>
+  <main id="app">
+    <canvas id="c" aria-label="노을 진 바닷가. 파라솔 아래 물범이 돗자리에 앉아 책을 읽고, 앞 모래에 조개가 놓여 있다"></canvas>
+    <div class="bar" role="group" aria-label="화면 조작">
+      <button type="button" id="btn-view">둘러보기</button>
+      <button type="button" id="btn-home" hidden>내 자리로</button>
+      <button type="button" id="btn-sound" aria-pressed="false">소리 켜기</button>
+      <button type="button" id="btn-quality">품질</button>
+      <button type="button" id="btn-fill" hidden aria-pressed="false">가로 채움</button>
+    </div>
+    <button type="button" class="timer" id="btn-timer" aria-label="독서 타이머"><i aria-hidden="true">⏱</i><span id="timer-text">타이머</span></button>
+    <p class="tip" id="tip" hidden></p>
+    <p class="toast" id="toast" hidden></p>
+    <nav class="rail" id="rail" aria-label="내 자리에서 할 수 있는 일">
+      <button type="button" id="rail-motion" aria-expanded="false" aria-controls="pane-motion"><i aria-hidden="true">✨</i><span>동작</span></button>
+      <button type="button" id="rail-dress" aria-expanded="false" aria-controls="pane-dress"><i aria-hidden="true">🎀</i><span>꾸미기</span></button>
+      <button type="button" id="act-sand"><i aria-hidden="true">✍️</i><span>모래글씨</span></button>
+    </nav>
+    <div class="pane" id="pane-motion" hidden role="menu" aria-label="물범 동작">
+      <button type="button" data-motion="page"><i>📖</i>책장 넘기기</button>
+      <button type="button" data-motion="coffee"><i>☕</i>커피 한 모금</button>
+      <button type="button" data-motion="sea"><i>🌊</i>바다 보기</button>
+      <button type="button" data-motion="stretch"><i>🙆</i>기지개</button>
+      <button type="button" data-motion="doze"><i>😪</i>꾸벅 졸기</button>
+      <button type="button" data-motion="clap"><i>👏</i>박수</button>
+      <button type="button" data-motion="hello"><i>👋</i>손 흔들기</button>
+    </div>
+    <div class="pane" id="pane-dress" hidden role="menu" aria-label="꾸미기">
+      <button type="button" id="act-cap" aria-pressed="true"><i>🧢</i>모자</button>
+      <button type="button" id="act-glasses" aria-pressed="false"><i>👓</i>안경</button>
+      <button type="button" id="act-blanket" aria-pressed="false"><i>🧣</i>담요</button>
+      <button type="button" id="act-headset" aria-pressed="false"><i>🎧</i>음악 듣기</button>
+      <button type="button" id="act-mirror"><i>🪞</i>거울 보기</button>
+    </div>
+    <div class="np" id="np" hidden>
+      <span class="np-note" aria-hidden="true">♪</span>
+      <span class="np-text"><small id="np-src">독서 음악</small><b id="np-title"></b></span>
+      <button type="button" id="np-prev" aria-label="이전 곡">⏮</button>
+      <button type="button" id="np-play" aria-label="일시정지">⏸</button>
+      <button type="button" id="np-next" aria-label="다음 곡">⏭</button>
+    </div>
+
+    <div class="yt-box" id="yt-box" hidden><div class="yt-frame"></div></div>
+
+    <section class="dlg" id="dlg-timer" hidden role="dialog" aria-label="독서 타이머">
+      <div class="card timercard">
+        <h2 id="timer-h">얼마나 읽을까요?</h2>
+        <div class="mins" id="timer-mins">
+          <button type="button" data-min="10">10분</button><button type="button" data-min="20">20분</button><button type="button" data-min="30">30분</button><button type="button" data-min="45">45분</button>
+        </div>
+        <p class="hint" id="timer-hint">시간이 다 되면 물범이 기지개를 켜고 알려 줘요</p>
+        <div class="btns">
+          <button type="button" id="timer-stop" hidden>그만 읽기</button>
+          <button type="button" id="timer-close">닫기</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="dlg" id="dlg-sand" hidden role="dialog" aria-label="모래글씨 쓰기">
+      <div class="card">
+        <h2>모래 위에 글씨 쓰기</h2>
+        <div class="tabs" role="tablist">
+          <button type="button" id="tab-hand" role="tab" aria-pressed="true">손으로 쓰기</button>
+          <button type="button" id="tab-type" role="tab" aria-pressed="false">글자로 쓰기</button>
+        </div>
+        <div id="pane-hand">
+          <canvas id="pad" width="720" height="240" aria-label="손가락이나 마우스로 글씨를 쓰는 모래판"></canvas>
+          <p class="hint">모래판에 손가락이나 마우스로 써 보세요</p>
+        </div>
+        <div id="pane-type" hidden>
+          <textarea id="sand-text" rows="2" maxlength="29" placeholder="남기고 싶은 말 (두 줄까지)"></textarea>
+          <label class="row">서체 <select id="sand-font"></select></label>
+          <canvas id="sand-prev" width="720" height="240" aria-label="글씨 미리보기"></canvas>
+        </div>
+        <div class="btns">
+          <button type="button" id="sand-undo">한 획 지우기</button>
+          <button type="button" id="sand-clear">다 지우기</button>
+          <button type="button" id="sand-cancel">닫기</button>
+          <button type="button" id="sand-ok" class="main">모래에 남기기</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="dlg" id="dlg-shell" hidden role="dialog" aria-label="조개 쪽지">
+      <div class="card shellcard">
+        <h2 id="shell-h">조개 속에 쪽지 남기기</h2>
+        <p class="who" id="shell-who" hidden></p>
+        <label>책 제목<input id="shell-title" type="text" maxlength="40" placeholder="읽고 있는 책" /></label>
+        <label>남길 말<textarea id="shell-text" rows="4" maxlength="200" placeholder="오늘 읽은 문장이나 마음"></textarea></label>
+        <p class="hint">쪽지는 이 기기에만 저장되고 다른 사람에게 보이지 않아요</p>
+        <div class="btns">
+          <button type="button" id="shell-del">지우기</button>
+          <button type="button" id="shell-cancel">닫기</button>
+          <button type="button" id="shell-ok" class="main">조개에 넣기</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="dlg" id="dlg-mirror" hidden role="dialog" aria-label="거울 보기">
+      <div class="card mirrorcard">
+        <div class="mirror"><canvas id="mirror" width="256" height="256" aria-label="거울에 비친 물범 얼굴"></canvas></div>
+        <div class="btns wrap">
+          <button type="button" data-item="cap">모자</button>
+          <button type="button" data-item="glasses">안경</button>
+          <button type="button" data-item="headset">헤드셋</button>
+          <button type="button" data-item="blanket">담요</button>
+          <button type="button" id="mirror-close" class="main">거울 내려놓기</button>
+        </div>
+      </div>
+    </section>
+
+    <pre class="hud" id="hud" aria-live="off" hidden></pre>
+    <p class="fine">파도서재 S8</p>
+  </main>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

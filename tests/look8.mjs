@@ -1,0 +1,40 @@
+// S8 빠른 확인: 비니·담요 확대, 노을, 모래판 획, 모래글씨
+import { createRequire } from 'node:module';
+import { spawn } from 'node:child_process';
+import { mkdirSync } from 'node:fs';
+const { chromium } = createRequire(import.meta.url)('playwright');
+const out = process.argv[2] || 'look', PORT = process.env.PORT || '4281', q = process.env.Q || ''; mkdirSync(out, { recursive: true });
+const srv = spawn('npx', ['vite', 'preview', '--port', PORT, '--strictPort'], { stdio: 'ignore' });
+await new Promise((r) => setTimeout(r, 2000));
+const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--ignore-gpu-blocklist'] });
+const page = await (await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 })).newPage();
+const errors = []; page.on('pageerror', (e) => errors.push(String(e))); page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+await page.goto(`http://localhost:${PORT}/?quality=mid&timescale=2${q}`, { waitUntil: 'load' });
+await page.waitForFunction(() => window.__s5 && window.__s5.stats().firstFrameMs !== null, null, { timeout: 90000 });
+await page.waitForTimeout(2000);
+await page.evaluate(() => { window.__s5.toggleItem ? window.__s5.toggleItem('blanket') : 0; });
+await page.waitForTimeout(800);
+const [x, y] = await page.evaluate(() => window.__s5.screenOf(window.__s5.objects.seal.group.position).map(Math.round));
+await page.screenshot({ path: `${out}/seal.png`, clip: { x: x - 200, y: y - 340, width: 400, height: 400 } });
+await page.screenshot({ path: `${out}/full.jpg`, type: 'jpeg', quality: 80 });
+await page.evaluate(() => window.__s5.setDusk(1)); await page.waitForTimeout(1500);
+await page.screenshot({ path: `${out}/dusk.jpg`, type: 'jpeg', quality: 80 });
+await page.evaluate(() => window.__s5.setDusk(0.5)); await page.waitForTimeout(1500);
+await page.screenshot({ path: `${out}/dusk-half.jpg`, type: 'jpeg', quality: 80 });
+await page.evaluate(() => window.__s5.setDusk(0));
+// 모래판에 획 그리기 (빠른 획 + 느린 획)
+await page.click('#act-sand'); await page.waitForTimeout(300);
+const b = await page.locator('#pad').boundingBox();
+const draw = async (pts, steps) => { await page.mouse.move(b.x + pts[0][0] * b.width, b.y + pts[0][1] * b.height); await page.mouse.down(); for (let i = 1; i < pts.length; i++) await page.mouse.move(b.x + pts[i][0] * b.width, b.y + pts[i][1] * b.height, { steps }); await page.mouse.up(); };
+await draw([[0.1, 0.3], [0.2, 0.7], [0.3, 0.3]], 25);
+await draw([[0.4, 0.25], [0.4, 0.75]], 4);
+const heart = []; for (let i = 0; i <= 40; i++) { const t = i / 40 * Math.PI * 2; heart.push([0.72 + 0.009 * 16 * Math.sin(t) ** 3 * 0.6, 0.48 - 0.024 * (13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) * 0.9]); }
+await draw(heart, 3);
+await page.locator('#dlg-sand .card').screenshot({ path: `${out}/pad.png` });
+await page.click('#sand-ok');
+await page.waitForFunction(() => window.__s5.sandWriting && window.__s5.sandWriting.p >= 1, null, { timeout: 60000 });
+await page.waitForTimeout(1500);
+const s = await page.evaluate(() => { const S = window.__s5, bx = S.sandWriting.box; return S.screenOf(S.groundFromStage(bx.cx, bx.cy)).map(Math.round); });
+await page.screenshot({ path: `${out}/sand.png`, clip: { x: Math.max(0, s[0] - 260), y: Math.max(0, s[1] - 150), width: 520, height: 300 } });
+console.log(JSON.stringify({ errors, audio: await page.evaluate(() => window.__ui.audio.diag().supported) }));
+await browser.close(); srv.kill();
