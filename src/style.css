@@ -96,10 +96,10 @@ button[hidden], .tip[hidden] { display: none; }
 .bubble::after { content: ''; position: absolute; left: 50%; bottom: -7px; margin-left: -7px; border: 7px solid transparent; border-bottom: 0; border-top-color: #fffaf2; }
 @keyframes bub { 0% { opacity: 0; transform: translate(-50%, calc(-100% - 10px)) scale(.6); } 12% { opacity: 1; transform: translate(-50%, calc(-100% - 30px)) scale(1.08); } 20% { transform: translate(-50%, calc(-100% - 26px)) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, calc(-100% - 40px)); } }
 /* S11 별똥별 (누르면 소원) */
-.star-fall { position: absolute; width: 170px; height: 70px; padding: 0; background: transparent !important; box-shadow: none !important; border: 0; z-index: 2; cursor: pointer; animation: fall 3.2s linear forwards; }
+.star-fall { position: absolute; width: 200px; height: 110px; touch-action: manipulation; padding: 0; background: transparent !important; box-shadow: none !important; border: 0; z-index: 2; cursor: pointer; animation: fall 6s cubic-bezier(.3,.1,.6,1) forwards; }
 .star-fall span { position: absolute; right: 0; top: 50%; width: 150px; height: 3px; border-radius: 3px; background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,246,220,.95)); transform: rotate(-24deg); transform-origin: right center; box-shadow: 0 0 10px rgba(255,240,200,.8); }
 .star-fall span::after { content: ''; position: absolute; right: -4px; top: -3px; width: 9px; height: 9px; border-radius: 50%; background: #fffbe8; box-shadow: 0 0 14px 4px rgba(255,240,190,.9); }
-@keyframes fall { 0% { opacity: 0; transform: translate(0, 0); } 10% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; transform: translate(-260px, 120px); } }
+@keyframes fall { 0% { opacity: 0; transform: translate(0, 0); } 8% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-170px, 78px); } }
 .bottlecard blockquote { margin: 6px 0 4px; padding: 14px 16px; border-radius: 14px; background: #fbf1dc; font: 20px/1.45 "Gaegu", "Nanum Pen Script", serif; color: #5a3a2c; }
 #wish-text { width: 100%; font: 19px/1.35 "Gaegu", "Nanum Pen Script", sans-serif; }
 .rail #act-daynight[aria-pressed="true"] { background: #2f3360; color: #fff6dc; } .rail #act-daynight[aria-pressed="true"] span, .rail #act-fire[aria-pressed="true"] span { color: #fff6dc; }

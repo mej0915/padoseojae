@@ -29,7 +29,15 @@ for (const [n, opt] of [['pc', { viewport: { width: 1280, height: 800 } }], ['ip
   await p.waitForTimeout(600); await p.screenshot({ path: `${out}/s11-${n}-star.jpg`, type: 'jpeg', quality: 70 });
   await p.click('#star-fall', { force: true }).catch(() => {}); await p.waitForTimeout(300);
   const wish = await p.evaluate(() => !document.getElementById('dlg-wish').hidden);
-  console.log(n, { wish, rail: await p.evaluate(() => [...document.querySelectorAll('#rail button')].map((b) => b.hidden ? '-' : b.textContent.trim())) }, errs);
+  await p.evaluate(() => { document.getElementById('dlg-wish').hidden = true; });
+  const [bx, by] = await p.evaluate(() => { const S = window.__s5, o = S.objects2.bottle; const v = o.position.clone(); v.y = 0.06; return S.screenOf(v).map(Math.round); });
+  await p.mouse.click(bx, by); await p.waitForTimeout(500);
+  const bottle = await p.evaluate(() => !document.getElementById('dlg-bottle').hidden);
+  await p.screenshot({ path: `${out}/s11-${n}-bottle.jpg`, type: 'jpeg', quality: 70 });
+  await p.evaluate(() => { document.getElementById('dlg-bottle').hidden = true; });
+  const [cx, cy] = await p.evaluate(() => { const S = window.__s5, o = S.objects.crab; return S.screenOf(o.userData.worldPos(o.position.clone())).map(Math.round); });
+  await p.mouse.click(cx, cy); const crabBubble = await p.waitForSelector('.bubble', { timeout: 4000 }).then(() => true).catch(() => false);
+  console.log(n, { wish, bottle, crabBubble, rail: await p.evaluate(() => [...document.querySelectorAll('#rail button')].map((b) => b.hidden ? '-' : b.textContent.trim())) }, errs);
   await c.close();
 }
 await b.close(); srv.kill();

@@ -216,9 +216,16 @@ export function createScene(canvas, audio = null) {
   const mkGlow = (s) => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, opacity: 0 })); sp.scale.setScalar(s); glowScene.add(sp); return sp; };
   const tipGlows = tips.map(() => mkGlow(0.3)), lanternGlow = mkGlow(0.75), fireGlow = mkGlow(1.6);
   // S11 반딧불과 파랗게 빛나는 물가(밤)
-  const flies = Array.from({ length: 22 }, (_, i) => { const sp = mkGlow(0.12); sp.material.color.set('#e4ff9c'); sp.userData = { x: -3 + Math.random() * 6, y: 0.25 + Math.random() * 1.1, z: SPOT.z - 0.8 + Math.random() * 2.6, ph: Math.random() * 20, sp: 0.3 + Math.random() * 0.5 }; return sp; });
-  const shore = Array.from({ length: 46 }, (_, i) => { const sp = mkGlow(0.32); sp.material.color.set('#6fe6ff'); sp.userData = { i, ph: Math.random() * 10, base: new THREE.Vector3() }; return sp; });
-  function placeShore() { if (!L) return; const hw = (W / L.scale) / 2; shore.forEach((sp, i) => { const sx = STAGE.focusX - hw * 1.1 + (i / (shore.length - 1)) * hw * 2.2, sy = 748 + 26 * Math.sin(i * 1.7) * Math.random(); sp.userData.base.copy(groundFromStage(sx, sy)).setY(0.03); }); }
+  /* S12: 반딧불·야광 파도를 점 하나의 묶음으로 (그리기 1번씩) */
+  const mkDots = (n, size, color) => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3)); g.setAttribute('aA', new THREE.BufferAttribute(new Float32Array(n), 1));
+    const m = new THREE.ShaderMaterial({ uniforms: { map: { value: glowTex }, uC: { value: new THREE.Color(color) }, uS: { value: size }, uH: { value: 400 } }, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending,
+      vertexShader: 'attribute float aA; varying float vA; uniform float uS, uH; void main(){ vA = aA; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv; gl_PointSize = aA > 0.003 ? uS * projectionMatrix[1][1] * uH / -mv.z : 0.0; }',
+      fragmentShader: 'uniform sampler2D map; uniform vec3 uC; varying float vA; void main(){ vec4 t = texture2D(map, gl_PointCoord); gl_FragColor = vec4(t.rgb * uC, t.a * vA); \n#include <colorspace_fragment>\n}' });
+    const pts = new THREE.Points(g, m); pts.frustumCulled = false; glowScene.add(pts); return pts; };
+  const flyPts = mkDots(22, 0.12, '#e4ff9c'), shorePts = mkDots(46, 0.32, '#6fe6ff');
+  const flies = Array.from({ length: 22 }, () => ({ x: -3 + Math.random() * 6, y: 0.25 + Math.random() * 1.1, z: SPOT.z - 0.8 + Math.random() * 2.6, ph: Math.random() * 20, sp: 0.3 + Math.random() * 0.5 }));
+  const shore = Array.from({ length: 46 }, (_, i) => ({ i, ph: Math.random() * 10, base: new THREE.Vector3() }));
+  function placeShore() { if (!L) return; const hw = (W / L.scale) / 2; shore.forEach((u, i) => { const sx = STAGE.focusX - hw * 1.1 + (i / (shore.length - 1)) * hw * 2.2, sy = 748 + 26 * Math.sin(i * 1.7) * Math.random(); u.base.copy(groundFromStage(sx, sy)).setY(0.03); }); }
   const warmEm = new THREE.Color('#ffc874');
   // S7: 소품을 줄여 여백을 둔다 (돗자리 하나, 탁자, 모래성, 팻말, 바위, 조개 4개, 조약돌 몇 개, 풀 두 포기, 꽃게 한 마리)
   put(PR.createTable(), 255, 812, 150, 828, 0.85);
@@ -395,8 +402,8 @@ export function createScene(canvas, audio = null) {
     }
     if (view === 'seat') {      // S7: 내 자리에서 바로 조개 누르기
       const i = shellAt(mx, my); if (i >= 0) { shellHop[i] = 1; pick.onShell?.(i); return; }
-      for (const cr of [crab, crab2]) { if (!cr.visible) continue; const [cx, cy] = screenOf(cr.userData.worldPos(tmp2)); if (Math.hypot(cx - mx, cy - my) < Math.max(42, Math.min(W, H) * 0.065)) { cr.userData.poke(); pick.onCrab?.(cx, cy, cr === crab2); return; } }   // S10: 꽃게 누르면 말풍선
-      if (bottle.visible) { tmp2.copy(bottle.position).setY(0.06); const [bx, by] = screenOf(tmp2); if (Math.hypot(bx - mx, by - my) < Math.max(44, Math.min(W, H) * 0.07)) { pick.onBottle?.(); return; } }
+      for (const cr of [crab, crab2]) { if (!cr.visible) continue; const [cx, cy] = screenOf(cr.userData.worldPos(tmp2)); if (Math.hypot(cx - mx, cy - my) < Math.max(50, Math.min(W, H) * 0.075)) { cr.userData.poke(); pick.onCrab?.(cx, cy, cr === crab2); return; } }   // S10: 꽃게 누르면 말풍선
+      if (bottle.visible) { tmp2.copy(bottle.position).setY(0.06); const [bx, by] = screenOf(tmp2); if (Math.hypot(bx - mx, by - my) < Math.max(58, Math.min(W, H) * 0.09)) { pick.onBottle?.(); return; } }
       return;
     }
     if (view === 'focus') {     // 조개 누르기 (작은 화면에서도 누르기 쉽게 넉넉히)
@@ -519,8 +526,9 @@ export function createScene(canvas, audio = null) {
     fireK += (fireWant - fireK) * Math.min(1, camDt * 1.5); fire.userData.setOn(fireK);
     fire.userData.glowAt.getWorldPosition(tmp2); fireGlow.position.copy(tmp2); fireGlow.material.opacity = fireK * (0.55 + 0.15 * Math.sin(simT * 9.1) * Math.sin(simT * 3.7));
     { const [fx, fy] = screenOf(tmp2); finishU.uLamp2.value.set(fx / W, 1 - fy / H, 0.5 * Math.min(1, H / W * 1.6) * fireK); }
-    for (const f of flies) { const u = f.userData; f.position.set(u.x + Math.sin(simT * u.sp + u.ph) * 0.5, u.y + Math.sin(simT * u.sp * 1.7 + u.ph * 2) * 0.2, u.z + Math.cos(simT * u.sp * 0.8 + u.ph) * 0.4); f.material.opacity = ss((night - 0.5) / 0.4) * Math.max(0, Math.sin(simT * 1.3 + u.ph * 3)) ** 2; }
-    for (const sp of shore) { const u = sp.userData; sp.position.copy(u.base); sp.material.opacity = ss((night - 0.4) / 0.4) * (0.25 + 0.75 * (wave.wash || 0)) * (0.5 + 0.5 * Math.sin(simT * 3 + u.ph)); }
+    { const fp = flyPts.geometry.attributes.position.array, fa = flyPts.geometry.attributes.aA.array, kF = ss((night - 0.5) / 0.4); flies.forEach((u, i) => { fp[i * 3] = u.x + Math.sin(simT * u.sp + u.ph) * 0.5; fp[i * 3 + 1] = u.y + Math.sin(simT * u.sp * 1.7 + u.ph * 2) * 0.2; fp[i * 3 + 2] = u.z + Math.cos(simT * u.sp * 0.8 + u.ph) * 0.4; fa[i] = kF * Math.max(0, Math.sin(simT * 1.3 + u.ph * 3)) ** 2; });
+      const sp = shorePts.geometry.attributes.position.array, sa = shorePts.geometry.attributes.aA.array, kS = ss((night - 0.4) / 0.4) * (0.25 + 0.75 * (wave.wash || 0)); shore.forEach((u, i) => { sp[i * 3] = u.base.x; sp[i * 3 + 1] = u.base.y; sp[i * 3 + 2] = u.base.z; sa[i] = kS * (0.5 + 0.5 * Math.sin(simT * 3 + u.ph)); });
+      for (const d of [flyPts, shorePts]) { d.geometry.attributes.position.needsUpdate = true; d.geometry.attributes.aA.needsUpdate = true; d.material.uniforms.uH.value = renderer.domElement.height * 0.5; } }
     // 밤이 깊어지면 도톰한 숄을 어깨에 두름
     shawlK += ((night > 0.4 ? 1 : 0) - shawlK) * Math.min(1, camDt * 2.5);
     SX.shawl.visible = shawlK > 0.02; SX.shawl.scale.setScalar(0.85 + 0.15 * shawlK); SX.shawl.position.y = (1 - shawlK) * 0.12;

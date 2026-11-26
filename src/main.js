@@ -169,12 +169,13 @@ function shootStar() {
     const el = $('star-fall'), w = innerWidth, h = innerHeight;
     el.style.left = (w * (0.35 + Math.random() * 0.5)) + 'px'; el.style.top = (h * (0.06 + Math.random() * 0.16)) + 'px';
     el.hidden = false; el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
-    clearTimeout(shootStar.t); shootStar.t = setTimeout(() => { el.hidden = true; }, 3200);
+    clearTimeout(shootStar.t); shootStar.t = setTimeout(() => { el.hidden = true; }, 6000);
+    if (!shootStar.told) { shootStar.told = true; tip('별똥별이 지나가요! 눌러서 소원을 빌어 보세요 🌠', 4500); }
   }
   setTimeout(shootStar, 18000 + Math.random() * 25000);
 }
 setTimeout(shootStar, 6000);
-$('star-fall').addEventListener('click', () => { $('star-fall').hidden = true; sound(true); sfx.twinkle(); $('dlg-wish').hidden = false; let n = 0; try { n = JSON.parse(localStorage.getItem(WISH_KEY) || '[]').length; } catch { /* */ } $('wish-count').textContent = n ? `지금까지 별에 보낸 소원 ${n}개` : ''; $('wish-text').focus(); });
+$('star-fall').addEventListener('pointerdown', () => { if ($('star-fall').hidden) return; $('star-fall').hidden = true; if (soundOn) sfx.twinkle(); $('dlg-wish').hidden = false; let n = 0; try { n = JSON.parse(localStorage.getItem(WISH_KEY) || '[]').length; } catch { /* */ } $('wish-count').textContent = n ? `지금까지 별에 보낸 소원 ${n}개` : ''; $('wish-text').focus(); });
 $('wish-close').addEventListener('click', () => { $('dlg-wish').hidden = true; });
 $('wish-ok').addEventListener('click', () => { const t = $('wish-text').value.trim(); if (!t) return tip('소원을 먼저 적어 주세요'); try { const a = JSON.parse(localStorage.getItem(WISH_KEY) || '[]'); a.push({ t, at: Date.now() }); localStorage.setItem(WISH_KEY, JSON.stringify(a.slice(-100))); } catch { /* */ } $('wish-text').value = ''; $('dlg-wish').hidden = true; sfx.twinkle(); S.act('clap'); tip('소원이 별을 타고 날아갔어요 ✨', 4000); });
 // ----- S11 유리병 편지: 파도가 가끔 데려옴. 열면 책 속 한 문장 -----
@@ -196,7 +197,7 @@ const BOTTLE_KEY = 'padoseojae.bottleIdx';
 function scheduleBottle(ms) { clearTimeout(scheduleBottle.t); scheduleBottle.t = setTimeout(() => { if (!S.bottleVisible) { S.showBottle(true); tip('파도가 유리병을 데려왔어요. 눌러 보세요', 4500); } }, ms); }
 scheduleBottle(45000);
 S.pick.onBottle = () => {
-  sound(true); sfx.shell(); let i = 0; try { i = (+localStorage.getItem(BOTTLE_KEY) || 0) % QUOTES.length; localStorage.setItem(BOTTLE_KEY, String(i + 1)); } catch { i = Math.floor(Math.random() * QUOTES.length); }
+  if (soundOn) sfx.shell(); let i = 0; try { i = (+localStorage.getItem(BOTTLE_KEY) || 0) % QUOTES.length; localStorage.setItem(BOTTLE_KEY, String(i + 1)); } catch { i = Math.floor(Math.random() * QUOTES.length); }
   $('bottle-quote').textContent = QUOTES[i][0]; $('bottle-src').textContent = '— ' + QUOTES[i][1]; $('dlg-bottle').hidden = false; S.showBottle(false);
 };
 $('bottle-close').addEventListener('click', () => { $('dlg-bottle').hidden = true; scheduleBottle(150000 + Math.random() * 120000); });
@@ -214,7 +215,7 @@ let crabTaps = 0;
 // S10: 꽃게를 누르면 랜덤 말풍선
 const CRAB_SAYS = ['뿅', '뀨', '꼬륵', '챱', '*.*', '+••+', '집게 조심!', '사각사각', '안녕?', '...!', '♪', '킁'];
 S.pick.onCrab = (x, y, friend) => {
-  sound(true); sfx.yip?.();
+  if (soundOn) sfx.yip?.();
   if (!friend && ++crabTaps === 5) { S.addCrabFriend(); setTimeout(() => tip('꽃게 친구가 놀러 왔어요 🦀🦀', 4000), 600); }
   const b = document.createElement('div'); b.className = 'bubble'; b.textContent = CRAB_SAYS[Math.floor(Math.random() * CRAB_SAYS.length)];
   b.style.left = x + 'px'; b.style.top = y + 'px'; $('app').appendChild(b); setTimeout(() => b.remove(), 1700);

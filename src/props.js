@@ -237,8 +237,12 @@ export function createCampfire() {
     for (let k = 0; k < p.count; k++) { const y = p.getY(k); p.setX(k, p.getX(k) * (1 + 0.25 * Math.sin(y * 18 + i))); }
     const m = new THREE.Mesh(geo, fireMat(c, o)); m.position.y = 0.08 + h / 2; m.userData.h = h; g.add(m); return m;
   });
-  const sparks = Array.from({ length: 14 }, () => { const s = new THREE.Mesh(new THREE.SphereGeometry(0.008, 5, 4), fireMat('#ffcf6a', 1)); s.userData = { t: rnd() * 2, x: 0, z: 0 }; g.add(s); return s; });
-  const light = new THREE.PointLight('#ff9a4a', 0, 3.4, 1.6); light.position.y = 0.35; g.add(light);
+  /* S12: 불티 14개를 점 묶음 하나로 (그리기 1번) */
+  const sparks = Array.from({ length: 14 }, () => ({ t: rnd() * 2, x: 0, z: 0 }));
+  const spG = new THREE.BufferGeometry(); spG.setAttribute('position', new THREE.BufferAttribute(new Float32Array(42), 3)); spG.setAttribute('color', new THREE.BufferAttribute(new Float32Array(42), 3));
+  const spPts = new THREE.Points(spG, new THREE.PointsMaterial({ size: 0.024, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); spPts.frustumCulled = false; g.add(spPts);
+  const spC = new THREE.Color('#ffcf6a');
+  const light = { intensity: 0 };   /* S12: 진짜 조명 대신 화면 불빛 웅덩이(uLamp2)로 비춤: 모든 픽셀 계산이 가벼워짐 */
   const glowAt = new THREE.Object3D(); glowAt.position.y = 0.2; g.add(glowAt);
   let on = 0; g.userData.on = 0;
   g.userData.setOn = (k) => { on = k; g.userData.on = k; };
@@ -246,7 +250,8 @@ export function createCampfire() {
   g.userData.update = (t, dt) => {
     const f = 0.8 + 0.2 * Math.sin(t * 9.1) * Math.sin(t * 3.7 + 1.3);
     flames.forEach((m, i) => { m.visible = on > 0.02; m.scale.set(on * (0.9 + 0.12 * Math.sin(t * (11 + i * 3) + i)), on * (0.85 + 0.25 * Math.sin(t * (7 + i * 2) + i * 2)), on * (0.9 + 0.1 * Math.cos(t * 9 + i))); m.rotation.y = t * (0.8 + i * 0.5); m.position.y = 0.08 + m.userData.h / 2 * m.scale.y; });
-    for (const s of sparks) { const u = s.userData; u.t += (dt || 0.016) * 0.7; if (u.t > 1) { u.t = 0; u.x = (rnd() - 0.5) * 0.12; u.z = (rnd() - 0.5) * 0.12; } s.visible = on > 0.3; s.position.set(u.x + Math.sin(u.t * 8 + u.x * 50) * 0.04 * u.t, 0.15 + u.t * 0.7, u.z); s.material.opacity = (1 - u.t) * on; }
+    spPts.visible = on > 0.3;
+    if (spPts.visible) { const P = spG.attributes.position.array, C = spG.attributes.color.array; sparks.forEach((u, i) => { u.t += (dt || 0.016) * 0.7; if (u.t > 1) { u.t = 0; u.x = (rnd() - 0.5) * 0.12; u.z = (rnd() - 0.5) * 0.12; } P[i * 3] = u.x + Math.sin(u.t * 8 + u.x * 50) * 0.04 * u.t; P[i * 3 + 1] = 0.15 + u.t * 0.7; P[i * 3 + 2] = u.z; const k = (1 - Math.min(1, u.t)) * on; C[i * 3] = spC.r * k; C[i * 3 + 1] = spC.g * k; C[i * 3 + 2] = spC.b * k; }); spG.attributes.position.needsUpdate = true; spG.attributes.color.needsUpdate = true; }
     light.intensity = 1.2 * f * on;
   };
   return g;
