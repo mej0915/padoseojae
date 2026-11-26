@@ -143,8 +143,22 @@ function openShell(n, mine, who) {
   $('shell-del').hidden = !mine || !n; $('shell-ok').hidden = !mine; document.querySelector('#dlg-shell .hint').hidden = !mine;
   $('dlg-shell').hidden = false;
 }
-S.pick.onPuppy = () => { sound(true); sfx.yip(); };
-S.pick.onShell = (i) => { shellId = i; sfx.shell(); setTimeout(() => openShell(notes[i], true), 1300); };   // 몽글이가 조개까지 뛰어가는 걸 보고 나서 쪽지 열기
+// S10: 밤바다 — 파도 소리 조금 작게, 갈매기 조용, 숄을 두를 때 천 소리
+S.onNightLevel = (k) => audio.setNight(k);
+S.onNight = (step, k, first) => { if (first) return; if (step === 1) tip('해가 바다 뒤로 넘어가요. 곧 밤바다예요', 4500); if (step === 2) { sfx.cloth(); tip('밤이 되어 랜턴을 켜고 털담요를 둘렀어요', 4500); } };
+// S10: 캐릭터 바꾸기 (같은 동작, 다른 친구)
+const KIND_KEY = 'padoseojae.kind', KIND_ORDER = ['seal', 'bear', 'bunny'];
+function setKind(k, quiet) { const name = S.setKind(k); try { localStorage.setItem(KIND_KEY, k); } catch { /* */ } $('act-kind').querySelector('span').textContent = name; if (!quiet) { sfx.cloth(); S.act('hello'); } }
+try { setKind(localStorage.getItem(KIND_KEY) || 'seal', true); } catch { setKind('seal', true); }
+$('act-kind').addEventListener('click', () => { const i = KIND_ORDER.indexOf(S.kind); setKind(KIND_ORDER[(i + 1) % KIND_ORDER.length]); });
+// S10: 꽃게를 누르면 랜덤 말풍선
+const CRAB_SAYS = ['뿅', '뀨', '꼬륵', '챱', '*.*', '+••+', '집게 조심!', '사각사각', '안녕?', '...!', '♪', '킁'];
+S.pick.onCrab = (x, y) => {
+  sound(true); sfx.yip?.();
+  const b = document.createElement('div'); b.className = 'bubble'; b.textContent = CRAB_SAYS[Math.floor(Math.random() * CRAB_SAYS.length)];
+  b.style.left = x + 'px'; b.style.top = y + 'px'; $('app').appendChild(b); setTimeout(() => b.remove(), 1700);
+};
+S.pick.onShell = (i) => { shellId = i; sfx.shell(); setTimeout(() => openShell(notes[i], true), 380); };
 S.pick.onOther = (os) => openShell(os, false, os.who);
 $('shell-cancel').addEventListener('click', () => { $('dlg-shell').hidden = true; });
 $('shell-del').addEventListener('click', () => { delete notes[shellId]; saveNotes(); $('dlg-shell').hidden = true; tip('쪽지를 지웠어요'); });

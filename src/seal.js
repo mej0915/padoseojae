@@ -68,6 +68,35 @@ function drapeGeometry() {
   return geo;
 }
 
+/** 도톰한 털담요(셰르파) 무늬: 크림색 바탕에 몽글몽글한 털뭉치 */
+function fleeceTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d');
+  x.fillStyle = '#efe2cf'; x.fillRect(0, 0, 256, 256);
+  let sd = 3; const r = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 1400; i++) { const px = r() * 256, py = r() * 256, rad = 2 + r() * 4; const g = x.createRadialGradient(px - 1, py - 1, 0, px, py, rad); g.addColorStop(0, 'rgba(255,250,240,.9)'); g.addColorStop(0.7, 'rgba(236,220,198,.5)'); g.addColorStop(1, 'rgba(180,150,120,0)'); x.fillStyle = g; x.beginPath(); x.arc(px, py, rad, 0, 6.3); x.fill(); }
+  for (let i = 0; i < 6; i++) { x.fillStyle = 'rgba(176,120,96,.10)'; x.fillRect(0, i * 44 + 10, 256, 12); x.fillRect(i * 44 + 10, 0, 12, 256); }   // 은은한 체크
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 2); return t;
+}
+/** 숄: spine 뼈 기준. 얼굴 쪽(-z)을 빼고 등·옆·어깨를 감쌈. 목에는 두툼하게 말린 깃, 가장자리는 도톰한 테 */
+function createShawl() {
+  const g = new THREE.Group(); g.name = 'shawl';
+  const mat = paintMat('#ffffff', { map: fleeceTexture(), grain: 30, grainAmt: 0.18, tint: '#a08ac8', rim: 0.35, side: THREE.DoubleSide });
+  const path = [[0.255, 0.215], [0.3, 0.17], [0.345, 0.09], [0.37, -0.02], [0.385, -0.13], [0.395, -0.24]];
+  const at = (v) => { const f = v * (path.length - 1), i = Math.min(path.length - 2, Math.floor(f)), t = f - i; return [path[i][0] + (path[i + 1][0] - path[i][0]) * t, path[i][1] + (path[i + 1][1] - path[i][1]) * t]; };
+  const A = 2.0;   // 등 쪽(+z)에서 좌우로 2.0rad씩 → 앞쪽 약 70도가 열림
+  const pos = (u, v) => { const a = (u - 0.5) * 2 * A; let [r, y] = at(v); r += 0.012 * Math.sin(a * 7) * v * v + 0.01; const edge = Math.abs(u - 0.5) * 2; y -= edge * edge * 0.05 * v; return new THREE.Vector3(Math.sin(a) * r, y, Math.cos(a) * r * 0.9); };
+  const NU = 36, NV = 12, geo = new THREE.PlaneGeometry(1, 1, NU, NV), p = geo.attributes.position, uv = geo.attributes.uv;
+  for (let i = 0; i < p.count; i++) { const v3 = pos(uv.getX(i), 1 - uv.getY(i)); p.setXYZ(i, v3.x, v3.y, v3.z); }
+  geo.computeVertexNormals();
+  const cloth = new THREE.Mesh(geo, mat); cloth.castShadow = true; g.add(cloth);
+  // 도톰한 테두리: 목 깃(굵게), 양쪽 앞자락, 아래 끝단
+  const tube = (pts, r) => { const m = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), pts.length * 6, r, 8, false), mat); m.castShadow = true; addOutline(m, LINE, 0.005, 14); g.add(m); };
+  tube(Array.from({ length: 13 }, (_, i) => pos(i / 12, 0).add(new THREE.Vector3(0, 0.01, 0))), 0.034);
+  for (const u of [0, 1]) tube(Array.from({ length: 8 }, (_, i) => pos(u, i / 7)), 0.022);
+  tube(Array.from({ length: 13 }, (_, i) => pos(i / 12, 1)), 0.02);
+  return g;
+}
+
 export function createSeal() {
   const group = new THREE.Group(); group.name = 'seal';
   const fur = paintMat(FUR, { grain: 6, grainAmt: 0.22, tint: '#c4a0b0', rim: 0.45, form: 1 });
@@ -178,5 +207,31 @@ export function createSeal() {
   const glasses = ITEMS.glasses.build(); glasses.visible = false; slots.face.add(glasses);
   const eyes = [head.getObjectByName('eyeL'), head.getObjectByName('eyeR')];
 
-  return { group, body, skeleton, bones: { root, spine, head, armL, armR, footL, footR, book }, slots, extras: { lids, eyes, mug, leaf, blanket, glasses } };
+  // ----- S10 밤에 두르는 도톰한 털담요(숄): 어깨부터 등·옆을 감싸고 앞은 열려 팔과 책이 나옴 -----
+  const shawl = createShawl(); shawl.visible = false; spine.add(shawl);
+
+  // ----- S10 캐릭터 바꾸기: 같은 몸(같은 동작)에 색과 귀만 바꿔 다른 친구로 -----
+  const earsBear = new THREE.Group(), earsBunny = new THREE.Group(); head.add(earsBear, earsBunny);
+  const innerPink = paintMat('#f6b8b4', { grain: 10, rim: 0.2 });
+  for (const s of [-1, 1]) {
+    const e = part(new THREE.SphereGeometry(0.075, 18, 12), fur, 'earBear'); e.scale.set(1, 1, 0.55); e.position.set(s * 0.235, 0.285, 0.02); e.rotation.z = s * -0.75; e.scale.multiplyScalar(1.1); earsBear.add(e);
+    const ei = new THREE.Mesh(new THREE.CircleGeometry(0.045, 16), innerPink); ei.position.set(s * 0.235, 0.285, -0.025); ei.rotation.set(0, Math.PI, s * 0.75); earsBear.add(ei);
+    const b = part(new THREE.CapsuleGeometry(0.05, 0.2, 6, 14), fur, 'earBunny'); b.scale.set(1, 1, 0.5); b.position.set(s * 0.085, 0.47, 0.03); b.rotation.z = s * -0.22; b.rotation.x = 0.12; earsBunny.add(b);
+    const bi = new THREE.Mesh(new THREE.CapsuleGeometry(0.028, 0.15, 4, 10), innerPink); bi.scale.set(1, 1, 0.3); bi.position.set(s * 0.085, 0.47, 0.006); bi.rotation.z = s * -0.22; bi.rotation.x = 0.12; earsBunny.add(bi);
+  }
+  earsBear.visible = earsBunny.visible = false;
+  const KINDS = {
+    seal: { name: '노란 물범', fur: '#f6db8c', cream: '#fbecc4' },
+    bear: { name: '곰돌이', fur: '#c99670', cream: '#f3dcc0' },
+    bunny: { name: '하얀 토끼', fur: '#fbf4ea', cream: '#ffffff' },
+  };
+  let kind = 'seal';
+  function setKind(k) {
+    if (!KINDS[k]) k = 'seal'; kind = k; const K = KINDS[k];
+    fur.color.set(K.fur); cream.color.set(K.cream);
+    earsBear.visible = k === 'bear'; earsBunny.visible = k === 'bunny';
+    return K.name;
+  }
+
+  return { group, body, skeleton, bones: { root, spine, head, armL, armR, footL, footR, book }, slots, extras: { lids, eyes, mug, leaf, blanket, glasses, shawl }, setKind, get kind() { return kind; }, KINDS };
 }

@@ -82,19 +82,32 @@ export function createCrab(color = '#ea7458', range = 0.6, ph = 0) {
     const l = new THREE.Mesh(new THREE.CapsuleGeometry(0.008, 0.09, 3, 5), mat); l.rotation.z = s * 0.95; l.position.set(s * 0.045, -0.025, 0); p.add(l);
     c.add(p); legs.push({ p, s, i });
   }
-  let x = 0, dir = 1, pause = 1 + ph, wave = 0;
+  // S10: 반경 range 안에서 마음대로 옆걸음으로 돌아다님 (화면 밖으로 나갔다 들어오기도 함)
+  let x = 0, z = 0, tx = 0, tz = 0, pause = 1 + ph, wave = 0, yaw = 0, rnd = Math.random, startle = 0;
+  const pickTarget = () => { const a = rnd() * Math.PI * 2, r = range * Math.sqrt(rnd()); tx = Math.cos(a) * r; tz = Math.sin(a) * r * 0.7; };
+  g.userData.poke = () => { wave = 1; startle = 0.35; pause = Math.max(pause, 0.6); };
+  g.userData.worldPos = (v) => { v.set(x, 0.08, z); return c.parent.localToWorld(v); };
   g.userData.update = (t, dt) => {
     const d = Math.min(dt, 0.1);
-    if (pause > 0) { pause -= d; if (pause <= 0) { dir = Math.abs(x) > range * 0.6 ? -Math.sign(x) : (Math.sin(t * 13.7 + ph) > 0 ? 1 : -1); } }
-    else { x += dir * 0.16 * d; if (Math.abs(x) > range || Math.sin(t * 0.9 + ph * 5) > 0.985) { x = THREE.MathUtils.clamp(x, -range, range); pause = 1.2 + 2.2 * Math.abs(Math.sin(t * 3.1)); wave = 1; } }
+    startle = Math.max(0, startle - d);
+    if (pause > 0) { pause -= d; if (pause <= 0) pickTarget(); }
+    else {
+      const dx = tx - x, dz = tz - z, dist = Math.hypot(dx, dz);
+      if (dist < 0.02) { pause = 0.8 + 2.6 * rnd(); if (rnd() < 0.5) wave = 1; }
+      else {
+        const sp = 0.32 * d; x += dx / dist * Math.min(sp, dist); z += dz / dist * Math.min(sp, dist);
+        let want = Math.atan2(dz, -dx) * 0 + Math.atan2(-dz, dx); if (Math.abs(Math.atan2(Math.sin(want - yaw), Math.cos(want - yaw))) > Math.PI / 2) want += Math.PI;   // 옆걸음: 몸의 옆(x축)이 가는 쪽
+        yaw += Math.atan2(Math.sin(want - yaw), Math.cos(want - yaw)) * Math.min(1, d * 5);
+      }
+    }
     const moving = pause <= 0 ? 1 : 0;
-    c.position.set(x, moving * Math.abs(Math.sin(t * 14)) * 0.006, 0);
-    c.rotation.z = moving * Math.sin(t * 14) * 0.05;
+    c.position.set(x, moving * Math.abs(Math.sin(t * 14)) * 0.006 + Math.sin(Math.PI * Math.min(1, startle / 0.35)) * 0.05, z);
+    c.rotation.set(0, yaw, moving * Math.sin(t * 14) * 0.05);
     for (const l of legs) l.p.rotation.z = moving * Math.sin(t * 16 + l.i * 2.1 + (l.s > 0 ? 0 : 1.5)) * 0.35;
     wave = Math.max(0, wave - d * 0.45);
     const up = Math.sin(Math.PI * Math.min(1, wave * 1.4)) * 0.9;
     for (const k of claws) { k.p.rotation.z = k.s * (up * 0.9 + Math.sin(t * 2 + k.s) * 0.06); k.p.position.y = 0.07 + up * 0.03; }
-    for (const e of eyes) e.rotation.x = Math.sin(t * 1.7 + ph) * 0.12;
+    for (const e of eyes) e.rotation.x = Math.sin(t * 1.7 + ph) * 0.12 + startle * 1.2;
   };
   return g;
 }

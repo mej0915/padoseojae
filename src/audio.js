@@ -23,7 +23,8 @@ export function createAudio(base = './audio/') {
   let ctx = null, started = false, loading = null;
   const buffers = {};
   const vol = { bg: 0.8, sfx: 0.8 };
-  let muted = false, bgScale = 1, unlocking = null;
+  let muted = false, bgScale = 1, unlocking = null, nightK = 0;
+  const gullsOn = () => bgScale > 0.01 && nightK < 0.3;   // S10: 파도 소리를 끄거나 밤이면 갈매기도 조용
   const g = {}; // 노드 모음
   const played = { step: 0, page: 0, gull: 0 };
   let gullTimer = 0, lastStepIdx = -1;
@@ -71,14 +72,14 @@ export function createAudio(base = './audio/') {
     if (!ctx) return;
     const t = ctx.currentTime;
     g.master.gain.setTargetAtTime(muted ? 0 : 1, t, 0.08);        // 끄면 음악까지 전부 꺼진다
-    g.bg.gain.setTargetAtTime(vol.bg * bgScale, t, 0.25);
+    g.bg.gain.setTargetAtTime(vol.bg * bgScale * (1 - 0.4 * nightK), t, 0.6);   // 밤바다는 파도 소리가 조금 작게
     g.sfx.gain.setTargetAtTime(vol.sfx, t, 0.05);
   }
 
   function scheduleGull() {
     clearTimeout(gullTimer);
     gullTimer = setTimeout(() => { // 가끔 멀리서 갈매기 (30~70초 간격, 작고 먹먹하게)
-      if (started && !document.hidden) { played.gull++; oneShot('gull', { gain: 0.5, rate: 0.95 + Math.random() * 0.1, pan: (Math.random() - 0.5) * 1.4, lp: 2600 }); }
+      if (started && !document.hidden && gullsOn()) { played.gull++; oneShot('gull', { gain: 0.5, rate: 0.95 + Math.random() * 0.1, pan: (Math.random() - 0.5) * 1.4, lp: 2600 }); }
       scheduleGull();
     }, 30000 + Math.random() * 40000);
   }
@@ -117,7 +118,8 @@ export function createAudio(base = './audio/') {
     /** 조개 줍는 소리: 새 녹음을 구하지 못해, 같은 CC0 자갈 녹음 한 걸음을 높고 가볍게 재생한 임시 대체 */
     pick() { if (tooSoon('pick')) return; played.pick = (played.pick || 0) + 1; oneShot('step3', { gain: 0.5, rate: 1.55, pan: 0 }); },
     page() { if (tooSoon('page')) return; played.page++; oneShot('page', { gain: 1.0, rate: 0.96 + Math.random() * 0.08 }); },
-    gull() { played.gull++; oneShot('gull', { gain: 0.5, lp: 2600 }); },
+    gull() { if (!gullsOn()) return; played.gull++; oneShot('gull', { gain: 0.5, lp: 2600 }); },
+    setNight(k) { if (Math.abs(k - nightK) < 0.02 && k !== 0 && k !== 1) return; nightK = k; applyVolumes(); },
     /** 헤드셋을 쓰면 파도·바람을 낮춘다 (1=그대로) */
     setBgScale(x) { bgScale = x; applyVolumes(); },
     get ctx() { return ctx; }, get out() { return g.master; }, get sfxBus() { return g.sfx; }, get ready() { return started; },

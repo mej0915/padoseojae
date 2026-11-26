@@ -91,3 +91,7 @@ button[hidden], .tip[hidden] { display: none; }
 .np #np-wave[aria-pressed="false"] { opacity: .5; text-decoration: line-through; }
 @media (max-width: 480px) { .yt-box { top: calc(max(10px, env(safe-area-inset-top)) + 160px); } }
 .np { z-index: 3; }
+/* S10 꽃게 말풍선 */
+.bubble { position: absolute; transform: translate(-50%, calc(-100% - 26px)); padding: 6px 12px; border-radius: 16px; background: #fffaf2; color: #8a3a26; font: 700 17px "Gaegu", "Nanum Pen Script", sans-serif; box-shadow: 0 3px 12px rgba(60, 34, 30, .25); pointer-events: none; z-index: 5; white-space: nowrap; animation: bub 1.7s ease-out forwards; }
+.bubble::after { content: ''; position: absolute; left: 50%; bottom: -7px; margin-left: -7px; border: 7px solid transparent; border-bottom: 0; border-top-color: #fffaf2; }
+@keyframes bub { 0% { opacity: 0; transform: translate(-50%, calc(-100% - 10px)) scale(.6); } 12% { opacity: 1; transform: translate(-50%, calc(-100% - 30px)) scale(1.08); } 20% { transform: translate(-50%, calc(-100% - 26px)) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, calc(-100% - 40px)); } }

@@ -8,7 +8,6 @@ import { createMotionPlayer } from './motions.js';
 import * as PR from './props.js';
 import { createCap, createHeadset } from './chibi.js';
 import { createSeasonHat, createScarf } from './hats.js';
-import { createPuppy } from './puppy.js';
 import { textToCanvas, FONTS, sandMask } from './sandtext.js';
 import { createBoat, createIsland, createGull, createCrab, createMotes } from './life.js';
 
@@ -27,7 +26,8 @@ export function pickQuality() {
 }
 
 const FINISH_FRAG = /* glsl */`
-uniform sampler2D tScene; uniform vec2 uRes, uSun; uniform float uDpr, uPaper, uDof, uFocus, uDusk, uHor, uSkyK;
+uniform sampler2D tScene; uniform vec2 uRes, uSun; uniform float uDpr, uPaper, uDof, uFocus, uDusk, uHor, uSkyK, uNight, uSink, uTime, uSunR; uniform vec3 uLamp0, uLamp1; uniform vec2 uSunD;
+float h21(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
 ${NOISE}
 void main(){
   vec2 px = gl_FragCoord.xy / uDpr;
@@ -48,6 +48,17 @@ void main(){
     vec2 o1 = 1.2 * uDpr / uRes;
     vec3 nb = (texture2D(tScene, uvw + vec2(o1.x, 0.0)).rgb + texture2D(tScene, uvw - vec2(o1.x, 0.0)).rgb + texture2D(tScene, uvw + vec2(0.0, o1.y)).rgb + texture2D(tScene, uvw - vec2(0.0, o1.y)).rgb) * 0.25;
     c = max(c + (c - nb) * 0.55, vec3(0.0));
+  }
+  // S10 해가 바다 뒤로: 그림 속 해를 위에서부터 하늘빛으로 덮어 점점 내려가 사라지는 것처럼
+  if (uSink > 0.001) {
+    vec2 dS = (uv - uSunD) * vec2(uRes.x / uRes.y, 1.0); float dl = length(dS);
+    float disc = 1.0 - smoothstep(uSunR * 1.05, uSunR * 1.9, dl);
+    float line = uSunD.y + uSunR * 1.3 - uSink * uSunR * 2.6;           // 이 높이보다 위쪽은 이미 진 부분
+    float gone = disc * smoothstep(line - 0.003, line + 0.003, uv.y) * step(uHor + 0.002, uv.y);
+    vec3 skyL = texture2D(tScene, uvw + vec2(uSunR * 2.6 * uRes.y / uRes.x, 0.0)).rgb, skyR = texture2D(tScene, uvw - vec2(uSunR * 2.6 * uRes.y / uRes.x, 0.0)).rgb;
+    c = mix(c, (skyL + skyR) * 0.5, gone);
+    float bandSea = (1.0 - step(uHor, uv.y)) * exp(-abs(uv.x - uSunD.x) * 9.0);    // 바다에 비친 해길도 함께 흐려짐
+    c = mix(c, c * 0.78, bandSea * uSink);
   }
   vec4 o = linearToOutputTexel(vec4(c, 1.0));
   float paper = 0.955 + 0.06 * fbm(vec3(px * 0.22, 2.0)) + 0.025 * (vnoise(vec3(px * 1.3, 4.0)) - 0.5);
@@ -78,6 +89,27 @@ void main(){
     float band = exp(-abs(uv.y - uHor) * 22.0) * uSkyK;                       // 수평선 근처 바다에 노을빛 띠
     o.rgb += vec3(1.0, 0.5, 0.25) * band * 0.16 * uDusk;
     o.rgb += vec3(1.0, 0.45, 0.2) * 0.22 * exp(-sunD * 3.2) * uDusk;          // 해 주변이 붉게 번짐
+  }
+  // S10 밤바다: 푸르고 어둡게. 랜턴·파라솔 아래만 따뜻하게 밝음. 하늘엔 별이 하나둘, 달 하나
+  if (uNight > 0.001) {
+    vec3 day = o.rgb; float lmN = dot(o.rgb, vec3(0.3, 0.59, 0.11));
+    vec3 nightC = lmN * vec3(0.30, 0.37, 0.62) + o.rgb * 0.10 + vec3(0.015, 0.02, 0.05);
+    o.rgb = mix(o.rgb, nightC, uNight * 0.92);
+    vec2 asp = vec2(uRes.x / uRes.y, 1.0);
+    float p0 = exp(-pow(length((uv - uLamp0.xy) * asp) / max(uLamp0.z, 1e-3), 2.0)), p1 = exp(-pow(length((uv - uLamp1.xy) * asp) / max(uLamp1.z, 1e-3), 2.0));
+    o.rgb = mix(o.rgb, day * vec3(1.05, 0.78, 0.52), clamp(p0 * 0.62 + p1 * 0.4, 0.0, 1.0) * uNight);
+    float skyN = step(uHor + 0.006, uv.y);
+    vec2 cellP = px / 22.0, cell = floor(cellP), f = fract(cellP);
+    float hs = h21(cell), on = step(0.66, h21(cell + 9.1));
+    vec2 sp = vec2(h21(cell + 1.3), h21(cell + 7.7)) * 0.8 + 0.1;
+    float d = length(f - sp) * 22.0, sz = 0.7 + 1.5 * h21(cell + 3.3);
+    float appear = smoothstep(hs, hs + 0.15, uNight * 1.15);
+    float tw = 0.6 + 0.4 * sin(uTime * (1.2 + 2.5 * hs) + hs * 50.0);
+    float star = on * appear * tw * (1.0 - smoothstep(0.0, sz, d)) * smoothstep(uHor + 0.01, uHor + 0.12, uv.y);
+    o.rgb += vec3(1.0, 0.96, 0.86) * star * skyN;
+    vec2 mc = vec2(0.2, min(uHor + 0.3, 0.86)); float md = length((uv - mc) * asp);
+    float moon = (1.0 - smoothstep(0.028, 0.031, md)) * smoothstep(0.02, 0.026, length((uv - mc - vec2(0.012, 0.006)) * asp));   // 초승달
+    o.rgb += (vec3(1.0, 0.95, 0.8) * moon * 0.9 + vec3(0.5, 0.55, 0.8) * exp(-md * 14.0) * 0.12) * uNight * skyN;
   }
   float v = length((uv - 0.5) * vec2(1.0, 0.9));
   o.rgb *= mix(vec3(1.0), vec3(0.74, 0.69, 0.82), smoothstep(0.42, 0.95, v));
@@ -147,7 +179,6 @@ export function createScene(canvas, audio = null) {
   seal.group.rotation.order = 'YXZ'; seal.group.position.set(SPOT.x, 0.03, SPOT.z); seal.group.rotation.set(0, SEAL_YAW, 0);
   const sealCap = createSeasonHat(); seal.bones.head.add(sealCap);   // S8: 머리 모양을 따라 쓰는 모자 (겨울엔 비니)
   // S9 강아지 친구 몽글이: 물범 오른쪽 돗자리 위
-  const puppy = createPuppy(); puppy.position.set(SPOT.x + 0.68, 0.03, SPOT.z + 0.26); puppy.rotation.y = -0.45; puppy.scale.setScalar(1.05); scene.add(puppy);
   const sealSet = createHeadset(0.265); sealSet.position.set(0, 0.13, 0); sealSet.visible = false; seal.bones.head.add(sealSet);
   const SX = seal.extras;
   const sealScarf = createScarf(); sealScarf.visible = false; seal.bones.spine.add(sealScarf);   // S9: 담요 대신 목도리
@@ -174,10 +205,17 @@ export function createScene(canvas, audio = null) {
     scene.add(o); items.push({ o, dxL, syL, dxP, syP, sP, s0: o.scale.x, y0: o.position.y }); if (o.userData.update) updaters.push(o); return o;
   };
   const parasol = PR.createParasol(); parasol.scale.setScalar(0.86); scene.add(parasol);
+  // S10 밤: 파라솔 방울 불빛 + 랜턴
+  const tips = []; parasol.traverse((o) => { if (o.userData.tip) tips.push(o); });
+  const lantern = PR.createLantern(); lantern.position.set(SPOT.x + 0.5, 0.03, SPOT.z + 0.22); lantern.scale.setScalar(1.25); scene.add(lantern); updaters.push(lantern);
+  const glowScene = new THREE.Scene();
+  const glowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,240,200,1)'); g.addColorStop(0.2, 'rgba(255,200,120,.75)'); g.addColorStop(0.5, 'rgba(255,170,90,.22)'); g.addColorStop(1, 'rgba(255,150,80,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+  const mkGlow = (s) => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, opacity: 0 })); sp.scale.setScalar(s); glowScene.add(sp); return sp; };
+  const tipGlows = tips.map(() => mkGlow(0.3)), lanternGlow = mkGlow(0.75);
+  const warmEm = new THREE.Color('#ffc874');
   // S7: 소품을 줄여 여백을 둔다 (돗자리 하나, 탁자, 모래성, 팻말, 바위, 조개 4개, 조약돌 몇 개, 풀 두 포기, 꽃게 한 마리)
   put(PR.createTable(), 255, 812, 150, 828, 0.85);
   const castle = put(PR.createCastle(), 545, 880, 230, 960, 1, -0.3);     // 세로 화면에서는 모래성을 빼서 여백을 둠
-  put(PR.createSign(), 505, 798, 222, 786, 0.55, -0.25);
   put(PR.createRocks(), -600, 776, -250, 760, 0.35);
   put(PR.createStarfish('#ef8466'), -470, 935, -232, 940, 0.85, 0.4);
   // 내 조개 4개: 앞쪽 빈 모래에 넉넉히 떨어뜨려 놓아 손가락으로도 누르기 쉽게 (무대 좌표, 가로 화면 / 세로 화면)
@@ -189,7 +227,7 @@ export function createScene(canvas, audio = null) {
     put(PR.createPebble(0.032 + (i % 3) * 0.01, i % 2 ? '#a99486' : '#bba59e'), a, b, a * 0.32, b + (i % 3) * 8, 1, i));
   put(PR.createGrass(16, 0.75), -735, 1006, -232, 1012, 0.7);
   put(PR.createGrass(12, 0.6), 748, 1010, 236, 1016, 0.7, 1.2);
-  put(createCrab('#e8694c', 0.45, 0), 415, 820, -150, 806, 0.6);
+  const crab = put(createCrab('#e8694c', 4, 0), 415, 820, -150, 806, 0.6);   // S10: 넓게 돌아다님 (화면 밖으로도)
   // 조개 반짝임: 누를 수 있다는 표시
   const sparkTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); x.translate(32, 32);
     const g = x.createRadialGradient(0, 0, 0, 0, 0, 30); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.25, 'rgba(255,246,214,0.55)'); g.addColorStop(1, 'rgba(255,230,180,0)'); x.fillStyle = g; x.fillRect(-32, -32, 64, 64);
@@ -257,7 +295,7 @@ export function createScene(canvas, audio = null) {
   // ----- 마무리 패스 -----
   const rt = new THREE.WebGLRenderTarget(1, 1, { type: halfOK ? THREE.HalfFloatType : THREE.UnsignedByteType, samples: Q.msaa });
   if (!halfOK) rt.texture.colorSpace = THREE.SRGBColorSpace;
-  const finishU = { tScene: { value: rt.texture }, uRes: { value: new THREE.Vector2() }, uDpr: { value: 1 }, uPaper: { value: Q.finish ? 1 : 0 }, uSun: { value: new THREE.Vector2(0.7, 0.75) }, uDof: { value: 1 }, uFocus: { value: 0.35 }, uDusk: { value: 0 }, uHor: { value: 0.6 }, uSkyK: { value: 1 } };
+  const finishU = { tScene: { value: rt.texture }, uRes: { value: new THREE.Vector2() }, uDpr: { value: 1 }, uPaper: { value: Q.finish ? 1 : 0 }, uSun: { value: new THREE.Vector2(0.7, 0.75) }, uDof: { value: 1 }, uFocus: { value: 0.35 }, uDusk: { value: 0 }, uHor: { value: 0.6 }, uSkyK: { value: 1 }, uNight: { value: 0 }, uSink: { value: 0 }, uTime: { value: 0 }, uSunR: { value: 0.04 }, uLamp0: { value: new THREE.Vector3() }, uLamp1: { value: new THREE.Vector3() }, uSunD: { value: new THREE.Vector2(0.65, 0.7) } };
   const finishScene = new THREE.Scene();
   const finish = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
     uniforms: finishU, depthTest: false, depthWrite: false, vertexShader: 'void main(){ gl_Position = vec4(position.xy, 0.0, 1.0); }', fragmentShader: FINISH_FRAG,
@@ -308,7 +346,7 @@ export function createScene(canvas, audio = null) {
     }
     parasol.position.set(mix(-0.5, -0.92, k), 0, CHAIR_POS.z - 0.42);
     castle.visible = k > 0.45;
-    const sunP = [L.tx + 1000 * s, L.ty + 232 * s]; finishU.uSun.value.set(sunP[0] / W, 1 - sunP[1] / H);
+    const sunP = [L.tx + 1000 * s, L.ty + 232 * s]; finishU.uSun.value.set(sunP[0] / W, 1 - sunP[1] / H); finishU.uSunR.value = 30 * s / H; finishU.uSunD.value.set((L.tx + 1000 * s) / W, 1 - (L.ty + 338 * s) / H);   // 그림 속 해 원반 위치
     applyCamera(true);
   }
 
@@ -347,9 +385,8 @@ export function createScene(canvas, audio = null) {
       if (best) setView('focus', best); return;
     }
     if (view === 'seat') {      // S7: 내 자리에서 바로 조개 누르기
-      const i = shellAt(mx, my); if (i >= 0) { shellHop[i] = 1; puppy.userData.runTo(shells[i].position.x, shells[i].position.z); pick.onShell?.(i); return; }   // S9: 몽글이가 조개로 뛰어감
-      tmp2.copy(puppy.position).setY(0.3); const [px, py] = screenOf(tmp2);
-      if (Math.hypot(px - mx, py - my) < Math.max(45, Math.min(W, H) * 0.07)) { puppy.userData.poke(); pick.onPuppy?.(); }
+      const i = shellAt(mx, my); if (i >= 0) { shellHop[i] = 1; pick.onShell?.(i); return; }
+      { const [cx, cy] = screenOf(crab.userData.worldPos(tmp2)); if (Math.hypot(cx - mx, cy - my) < Math.max(42, Math.min(W, H) * 0.065)) { crab.userData.poke(); pick.onCrab?.(cx, cy); return; } }   // S10: 꽃게 누르면 말풍선
       return;
     }
     if (view === 'focus') {     // 조개 누르기 (작은 화면에서도 누르기 쉽게 넉넉히)
@@ -448,16 +485,32 @@ export function createScene(canvas, audio = null) {
   const timescale = Number(new URLSearchParams(location.search).get('timescale')) || 1;
   // ----- S8 노을: 화면을 연 뒤 시간이 지날수록 천천히 노을이 진다 (약 25분에 가장 깊게, 그 뒤로는 그대로) -----
   const duskQ = Number(new URLSearchParams(location.search).get('dusk'));
-  const dusk = { start: performance.now(), minutes: 25, forced: Number.isFinite(duskQ) && new URLSearchParams(location.search).has('dusk') ? duskQ : null, v: 0 };
-  const C0 = { sun: new THREE.Color('#ffd6a8'), sunD: new THREE.Color('#ff9a5c'), fill: new THREE.Color('#fff0dc'), fillD: new THREE.Color('#e9b2b8'), sky: new THREE.Color('#efd2dc'), skyD: new THREE.Color('#d9a0b8') };
+  const nightQ = Number(new URLSearchParams(location.search).get('night'));
+  // S10: 0~10분 노을이 깊어지고, 10~14분 해가 바다 뒤로 지고, 11~19분에 걸쳐 밤이 된다
+  const dusk = { start: performance.now(), minutes: 10, forced: Number.isFinite(duskQ) && new URLSearchParams(location.search).has('dusk') ? duskQ : null, v: 0, night: 0, sink: 0, nightForced: Number.isFinite(nightQ) && new URLSearchParams(location.search).has('night') ? nightQ : null };
+  let onNight = null, lastNightStep = -1, shawlK = 0;
+  const C0 = { sun: new THREE.Color('#ffd6a8'), sunD: new THREE.Color('#ff9a5c'), fill: new THREE.Color('#fff0dc'), fillD: new THREE.Color('#e9b2b8'), sky: new THREE.Color('#efd2dc'), skyD: new THREE.Color('#d9a0b8'), night: new THREE.Color('#8fa2d8') };
   const fwd = new THREE.Vector3();
   function updateDusk() {
-    const t = dusk.forced ?? Math.min(1, (performance.now() - dusk.start) / 60000 / dusk.minutes);
-    const v = t * t * (3 - 2 * t); dusk.v = v;
-    finishU.uDusk.value = v;
-    sun.color.copy(C0.sun).lerp(C0.sunD, v); sun.intensity = 1.35 - 0.25 * v;
-    fill.color.copy(C0.fill).lerp(C0.fillD, v); fill.intensity = 1.3 - 0.45 * v;
-    hemi.color.copy(C0.sky).lerp(C0.skyD, v); hemi.intensity = 0.9 - 0.2 * v;
+    const m = (performance.now() - dusk.start) / 60000, ss = (x) => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
+    let night = dusk.nightForced ?? ss((m - 11) / 8), sink = dusk.nightForced !== null ? Math.min(1, dusk.nightForced * 3) : ss((m - 10) / 4);
+    const t = night > 0 ? 1 : (dusk.forced ?? Math.min(1, m / dusk.minutes));
+    const v = t * t * (3 - 2 * t); dusk.v = v; dusk.night = night; dusk.sink = sink;
+    finishU.uDusk.value = v * (1 - night * 0.6); finishU.uNight.value = night; finishU.uSink.value = sink; finishU.uTime.value = simT;
+    // 밤: 빛을 낮추고 푸르게, 파라솔 방울·랜턴에 불
+    const nk = night;
+    for (let i = 0; i < tips.length; i++) { tips[i].material.emissive.copy(warmEm).multiplyScalar(nk * 0.9); tips[i].getWorldPosition(tmp2); tipGlows[i].position.copy(tmp2); tipGlows[i].material.opacity = nk * (0.75 + 0.25 * Math.sin(simT * 2.3 + i)); }
+    lantern.userData.setOn(ss((night - 0.15) / 0.3)); lantern.userData.glowAt.getWorldPosition(tmp2); lanternGlow.position.copy(tmp2); lanternGlow.material.opacity = ss((night - 0.15) / 0.3) * (0.85 + 0.15 * Math.sin(simT * 7.3));
+    { const [lx, ly] = screenOf(tmp2); finishU.uLamp0.value.set(lx / W, 1 - ly / H, 0.32 * Math.min(1, H / W * 1.6)); }
+    { tmp2.set(parasol.position.x, 1.3, parasol.position.z); const [px2, py2] = screenOf(tmp2); finishU.uLamp1.value.set(px2 / W, 1 - py2 / H, 0.42 * Math.min(1, H / W * 1.6)); }
+    // 밤이 깊어지면 도톰한 숄을 어깨에 두름
+    shawlK += ((night > 0.4 ? 1 : 0) - shawlK) * Math.min(1, camDt * 2.5);
+    SX.shawl.visible = shawlK > 0.02; SX.shawl.scale.setScalar(0.85 + 0.15 * shawlK); SX.shawl.position.y = (1 - shawlK) * 0.12;
+    const step = night > 0.4 ? 2 : night > 0.02 ? 1 : 0; if (step !== lastNightStep) { const prev = lastNightStep; lastNightStep = step; if (prev >= 0) onNight?.(step, night); else onNight?.(step, night, true); }
+    onNightLevel?.(night);
+    sun.color.copy(C0.sun).lerp(C0.sunD, v); sun.intensity = (1.35 - 0.25 * v) * (1 - 0.85 * night);
+    fill.color.copy(C0.fill).lerp(C0.fillD, v).lerp(C0.night, night); fill.intensity = (1.3 - 0.45 * v) * (1 - 0.5 * night);
+    hemi.color.copy(C0.sky).lerp(C0.skyD, v).lerp(C0.night, night); hemi.intensity = (0.9 - 0.2 * v) * (1 - 0.45 * night);
     // 지금 카메라에서 수평선이 화면 어디인지 (둘러보기·하늘에서 보기에서도 노을 하늘이 바다 위에만 들도록)
     camera.getWorldDirection(fwd); fwd.y = 0;
     if (fwd.lengthSq() < 1e-6) { finishU.uHor.value = 9; return; }
@@ -465,6 +518,8 @@ export function createScene(canvas, audio = null) {
     const [, hy] = screenOf(tmp2); finishU.uHor.value = 1 - hy / H;
   }
   const setDusk = (x) => { dusk.forced = x; };
+  const setNight = (x) => { dusk.nightForced = x; };
+  let onNightLevel = null;
   const ctl = { paused: false };   // 시험용: 캡처하는 순간 시간을 멈춤
   let last = performance.now(), lastDraw = 0, firstFrame = null, frames = 0, fpsT = last, fps = 0, workMs = 0, workAcc = 0, wave = waves.at(0);
   const info = { calls: 0, triangles: 0 };
@@ -480,7 +535,6 @@ export function createScene(canvas, audio = null) {
     chars[charIdx].update(simT, dt);
     if (simT > nextPage && view === 'seat' && !motion.current) { nextPage = simT + 22 + Math.random() * 20; act(Math.random() < 0.8 ? 'page' : 'sea'); }
     for (const o of updaters) o.userData.update(simT, dt);
-    puppy.userData.update(simT, dt / timescale);
     parasol.userData.top.rotation.z = Math.sin(simT * 0.7) * 0.012; parasol.userData.top.rotation.x = Math.sin(simT * 0.53 + 1) * 0.01;
     if (!printed && simT > 0.6) { printed = true; stampPrints(); }
     others.visible = bird.k > 0.03;
@@ -509,6 +563,7 @@ export function createScene(canvas, audio = null) {
     beach.update(simT, dt, wave, timescale);
     renderer.setRenderTarget(rt); renderer.render(scene, camera);
     renderer.setRenderTarget(null); renderer.render(finishScene, ortho);
+    if (dusk.night > 0.01) { const ac = renderer.autoClear; renderer.autoClear = false; renderer.render(glowScene, camera); renderer.autoClear = ac; }
     info.calls = renderer.info.render.calls; info.triangles = renderer.info.render.triangles;
     gl.flush();
     workAcc += performance.now() - w0; frames++;
@@ -518,9 +573,9 @@ export function createScene(canvas, audio = null) {
   requestAnimationFrame(frame);
 
   return {
-    setView, get view() { return view; }, set onView(f) { onView = f; }, pick, writeSand, renderMirror, toggleItem, worn, act, motion, ctl, set onCue(f) { onCue = f; }, get sandWriting() { return sandW; }, setDusk, get dusk() { return dusk.v; },
+    setView, get view() { return view; }, set onView(f) { onView = f; }, pick, writeSand, renderMirror, toggleItem, worn, act, motion, ctl, set onCue(f) { onCue = f; }, get sandWriting() { return sandW; }, setDusk, get dusk() { return dusk.v; }, setNight, get night() { return dusk.night; }, set onNight(f) { onNight = f; }, set onNightLevel(f) { onNightLevel = f; }, setKind: (k) => seal.setKind(k), get kind() { return seal.kind; }, objects2: { lantern, tips },
     Q, qName, renderer, camera, refCam, beach, look, setLook, stampTest, groundFromStage, screenOf, stageOf,
-    objects: { puppy, shells, pebbles, parasol, seal }, motion,
+    objects: { crab, shells, pebbles, parasol, seal }, motion,
     get layoutInfo() { return L; }, get wave() { return wave; }, get simT() { return simT; },
     stats: () => ({ fps, workMs, calls: info.calls, triangles: info.triangles, firstFrameMs: firstFrame, quality: qName, pixelRatio: renderer.getPixelRatio(), size: [W, H], halfFloat: halfOK, map: beach.mapSize, fpsCap: Q.fps }),
   };

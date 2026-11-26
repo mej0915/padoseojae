@@ -23,7 +23,7 @@ export function createParasol(c1 = '#ee8f78', c2 = '#fbeeda') {
     seg.castShadow = true; top.add(seg);
     // 가장자리 술 장식
     const tip = mesh(new THREE.SphereGeometry(0.035, 8, 6), i % 2 ? c1 : c2, {}, 0);
-    const a = ((i + 0.5) / N) * Math.PI * 2; tip.position.set(Math.sin(a) * R * 0.99, -Hh / 2 - 0.02, Math.cos(a) * R * 0.99); top.add(tip);
+    const a = ((i + 0.5) / N) * Math.PI * 2; tip.position.set(Math.sin(a) * R * 0.99, -Hh / 2 - 0.02, Math.cos(a) * R * 0.99); tip.userData.tip = true; top.add(tip);   // S10: 밤에 불이 켜지는 방울
   }
   const knob = mesh(new THREE.SphereGeometry(0.05, 10, 8), '#c99662'); knob.position.y = Hh / 2 + 0.03; top.add(knob);
   g.userData.top = top;
@@ -65,8 +65,10 @@ export function createLantern() {
   const glow = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 10), new THREE.MeshBasicMaterial({ color: '#ffd98a' })); glow.position.y = 0.12; g.add(glow);
   const halo = new THREE.Mesh(new THREE.SphereGeometry(0.16, 14, 10), new THREE.MeshBasicMaterial({ color: '#ffc36a', transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending })); halo.position.y = 0.12; g.add(halo);
   const ring = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.006, 6, 14), paintMat(metal)); ring.position.y = 0.3; g.add(ring);
-  const light = new THREE.PointLight('#ffb866', 0.3, 1.6, 2); light.position.y = 0.14; g.add(light);
-  g.userData.update = (t) => { const f = 0.85 + 0.15 * Math.sin(t * 7.3) * Math.sin(t * 2.9 + 1); light.intensity = 0.3 * f; halo.material.opacity = 0.16 + 0.07 * f; halo.scale.setScalar(0.95 + 0.1 * f); };
+  const light = new THREE.PointLight('#ffb866', 0.3, 2.2, 2); light.position.y = 0.14; g.add(light);
+  let on = 1; g.userData.setOn = (k) => { on = k; glow.material.color.set('#7a6658').lerp(new THREE.Color('#ffd98a'), k); };   // S10: 밤에만 불을 켬
+  g.userData.glowAt = glow;
+  g.userData.update = (t) => { const f = 0.85 + 0.15 * Math.sin(t * 7.3) * Math.sin(t * 2.9 + 1); light.intensity = 1.6 * f * on; halo.material.opacity = (0.16 + 0.07 * f) * on; halo.scale.setScalar(0.95 + 0.1 * f); };
   return g;
 }
 
