@@ -167,7 +167,7 @@ const WISH_KEY = 'padoseojae.wishes';
 function shootStar() {
   if (S.night > 0.6 && S.view === 'seat' && document.visibilityState === 'visible' && $('star-fall').hidden) {
     const el = $('star-fall'), w = innerWidth, h = innerHeight;
-    el.style.left = (w * (0.35 + Math.random() * 0.5)) + 'px'; el.style.top = (h * (0.06 + Math.random() * 0.16)) + 'px';
+    el.style.left = (w * (0.3 + Math.random() * 0.45)) + 'px'; el.style.top = (h * (0.02 + Math.random() * 0.08)) + 'px';   /* S13: 하늘 높은 곳에서 시작해 바다 위 하늘로 떨어짐 */
     el.hidden = false; el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
     clearTimeout(shootStar.t); shootStar.t = setTimeout(() => { el.hidden = true; }, 6000);
     if (!shootStar.told) { shootStar.told = true; tip('별똥별이 지나가요! 눌러서 소원을 빌어 보세요 🌠', 4500); }
