@@ -1,0 +1,15 @@
+import { createRequire } from 'node:module';
+import { spawn } from 'node:child_process';
+const { chromium } = createRequire(import.meta.url)('playwright');
+const PORT = '4297', out = process.argv[2];
+const srv = spawn('npx', ['vite', 'preview', '--port', PORT, '--strictPort'], { stdio: 'ignore' });
+await new Promise((r) => setTimeout(r, 2000));
+const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--ignore-gpu-blocklist'] });
+const p = await (await b.newContext({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 1 })).newPage();
+await p.goto(`http://localhost:${PORT}/?quality=high&dusk=0.75&fill=1`);
+await p.waitForFunction(() => window.__s5 && window.__s5.stats().firstFrameMs !== null, null, { timeout: 120000 }); await p.waitForTimeout(4000);
+await p.addStyleTag({ content: `.bar,.rail,.pane,.np,.yt-box,#tip,.tip,.toast,footer,.foot,#btn-timer,.timer{display:none!important} #ogt{position:absolute;left:0;right:0;top:26px;text-align:center;color:#fffaf2;font-family:"Noto Sans CJK KR","Noto Sans KR",sans-serif;letter-spacing:-1px;text-shadow:0 3px 18px rgba(70,30,40,.55),0 1px 3px rgba(70,30,40,.5);z-index:99} #ogt b{display:block;font-size:76px;line-height:1;font-weight:900} #ogt span{display:block;margin-top:8px;font-size:30px;font-weight:700}` });
+await p.evaluate(() => { document.querySelectorAll('body *').forEach((e) => { const s = getComputedStyle(e); if ((s.position === 'absolute' || s.position === 'fixed') && e.tagName !== 'CANVAS' && !e.contains(document.getElementById('c'))) e.style.visibility = 'hidden'; }); const d = document.createElement('div'); d.id = 'ogt'; d.innerHTML = '<b>파도서재</b><span>바닷가 파라솔 아래, 물범과 함께 책 읽기</span>'; document.getElementById('app').appendChild(d); });
+await p.waitForTimeout(1500);
+await p.screenshot({ path: out, type: 'jpeg', quality: 86 });
+await b.close(); srv.kill();

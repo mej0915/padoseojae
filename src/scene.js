@@ -99,6 +99,10 @@ void main(){
     float p2 = uLamp2.z > 0.001 ? exp(-pow(length((uv - uLamp2.xy) * asp) / uLamp2.z, 2.0)) : 0.0;
     float p0 = exp(-pow(length((uv - uLamp0.xy) * asp) / max(uLamp0.z, 1e-3), 2.0)), p1 = exp(-pow(length((uv - uLamp1.xy) * asp) / max(uLamp1.z, 1e-3), 2.0));
     o.rgb = mix(o.rgb, day * vec3(1.05, 0.78, 0.52), clamp(p0 * 0.5 + p1 * 0.34 + p2 * 0.66, 0.0, 1.0) * uNight);
+    /* S12: 밤에는 불빛(랜턴·모닥불·물범 둘레)에서 먼 바다와 하늘을 더 어둡게 */
+    float keep = clamp(p0 * 1.1 + p1 * 0.5 + p2 * 1.1 + exp(-pow(length((uv - uLamp0.xy) * asp) / max(uLamp0.z * 2.4, 1e-3), 2.0)) * 0.85, 0.0, 1.0);
+    o.rgb *= 1.0 - uNight * 0.6 * (1.0 - keep);
+    o.rgb = mix(o.rgb, o.rgb * vec3(0.82, 0.86, 1.08), uNight * (1.0 - keep) * 0.6);
     float skyN = step(uHor + 0.006, uv.y);
     vec2 cellP = px / 22.0, cell = floor(cellP), f = fract(cellP);
     float hs = h21(cell), on = step(0.66, h21(cell + 9.1));
@@ -519,13 +523,13 @@ export function createScene(canvas, audio = null) {
     const nk = night;
     for (let i = 0; i < tips.length; i++) { tips[i].material.emissive.copy(warmEm).multiplyScalar(nk * 0.9); tips[i].getWorldPosition(tmp2); tipGlows[i].position.copy(tmp2); tipGlows[i].material.opacity = nk * (0.75 + 0.25 * Math.sin(simT * 2.3 + i)); }
     lantern.userData.setOn(ss((night - 0.15) / 0.3)); lantern.userData.glowAt.getWorldPosition(tmp2); lanternGlow.position.copy(tmp2); lanternGlow.material.opacity = ss((night - 0.15) / 0.3) * (0.85 + 0.15 * Math.sin(simT * 7.3));
-    { const [lx, ly] = screenOf(tmp2); finishU.uLamp0.value.set(lx / W, 1 - ly / H, 0.32 * Math.min(1, H / W * 1.6)); }
-    { tmp2.set(parasol.position.x, 1.3, parasol.position.z); const [px2, py2] = screenOf(tmp2); finishU.uLamp1.value.set(px2 / W, 1 - py2 / H, 0.42 * Math.min(1, H / W * 1.6)); }
+    { const [lx, ly] = screenOf(tmp2); finishU.uLamp0.value.set(lx / W, 1 - ly / H, 0.32 * Math.min(1, H / W * 1.6, W / H * 1.15)); }
+    { tmp2.set(parasol.position.x, 1.3, parasol.position.z); const [px2, py2] = screenOf(tmp2); finishU.uLamp1.value.set(px2 / W, 1 - py2 / H, 0.42 * Math.min(1, H / W * 1.6, W / H * 1.15)); }
     // S11 모닥불·반딧불·물가 빛
     fire.visible = night > 0.25; if (night < 0.25) fireWant = 0;
     fireK += (fireWant - fireK) * Math.min(1, camDt * 1.5); fire.userData.setOn(fireK);
     fire.userData.glowAt.getWorldPosition(tmp2); fireGlow.position.copy(tmp2); fireGlow.material.opacity = fireK * (0.55 + 0.15 * Math.sin(simT * 9.1) * Math.sin(simT * 3.7));
-    { const [fx, fy] = screenOf(tmp2); finishU.uLamp2.value.set(fx / W, 1 - fy / H, 0.5 * Math.min(1, H / W * 1.6) * fireK); }
+    { const [fx, fy] = screenOf(tmp2); finishU.uLamp2.value.set(fx / W, 1 - fy / H, 0.5 * Math.min(1, H / W * 1.6, W / H * 1.15) * fireK); }
     { const fp = flyPts.geometry.attributes.position.array, fa = flyPts.geometry.attributes.aA.array, kF = ss((night - 0.5) / 0.4); flies.forEach((u, i) => { fp[i * 3] = u.x + Math.sin(simT * u.sp + u.ph) * 0.5; fp[i * 3 + 1] = u.y + Math.sin(simT * u.sp * 1.7 + u.ph * 2) * 0.2; fp[i * 3 + 2] = u.z + Math.cos(simT * u.sp * 0.8 + u.ph) * 0.4; fa[i] = kF * Math.max(0, Math.sin(simT * 1.3 + u.ph * 3)) ** 2; });
       const sp = shorePts.geometry.attributes.position.array, sa = shorePts.geometry.attributes.aA.array, kS = ss((night - 0.4) / 0.4) * (0.25 + 0.75 * (wave.wash || 0)); shore.forEach((u, i) => { sp[i * 3] = u.base.x; sp[i * 3 + 1] = u.base.y; sp[i * 3 + 2] = u.base.z; sa[i] = kS * (0.5 + 0.5 * Math.sin(simT * 3 + u.ph)); });
       for (const d of [flyPts, shorePts]) { d.geometry.attributes.position.needsUpdate = true; d.geometry.attributes.aA.needsUpdate = true; d.material.uniforms.uH.value = renderer.domElement.height * 0.5; } }
@@ -593,8 +597,19 @@ export function createScene(canvas, audio = null) {
     info.calls = renderer.info.render.calls; info.triangles = renderer.info.render.triangles;
     gl.flush();
     workAcc += performance.now() - w0; frames++;
-    if (firstFrame === null && beach.ready.done) firstFrame = Math.round(now);
+    if (firstFrame === null && beach.ready.done) { firstFrame = Math.round(now); setTimeout(warmUp, 2500); }
     if (now - fpsT >= 1000) { fps = Math.round((frames * 1000) / (now - fpsT)); workMs = +(workAcc / frames).toFixed(1); frames = 0; workAcc = 0; fpsT = now; }
+  }
+  /* S12: 숨어 있는 것(모닥불, 숄, 유리병, 친구 꽃게, 반딧불 등)의 그림 준비를 한가할 때 미리 해 둔다.
+     처음 나타나는 순간 화면이 멈칫하던(셰이더 준비) 버벅임을 없앰 */
+  function warmUp() {
+    try {
+      const hidden = []; scene.traverse((o) => { if (!o.visible) { hidden.push(o); o.visible = true; } });
+      const p = renderer.compileAsync ? renderer.compileAsync(scene, camera) : (renderer.compile(scene, camera), null);
+      renderer.compile(glowScene, camera);
+      for (const o of hidden) o.visible = false;
+      p?.catch?.(() => {});
+    } catch { /* 준비 못 해도 그냥 처음 나올 때 준비됨 */ }
   }
   requestAnimationFrame(frame);
 

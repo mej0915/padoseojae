@@ -60,7 +60,7 @@ function syncItems() {
 async function toggle(id) {
   const on = S.toggleItem(id);
   if (id === 'headset') {
-    if (on) { await sound(true); audio.setBgScale(musicBg()); music.start(); } else { music.hide(); audio.setBgScale(1); }
+    if (on) { music.start(); audio.setBgScale(musicBg()); sound(true); }   /* S12: 누른 그 순간에 바로 재생 요청 (기다리면 휴대폰이 자동재생으로 보고 막음) */ else { music.hide(); audio.setBgScale(1); }
     $('np').hidden = !on;
   } else sfx.cloth();
   if (id === 'headset') sfx.click();

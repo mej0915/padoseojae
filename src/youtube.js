@@ -23,7 +23,9 @@ export function createYTMusic(fallback, box) {
   const useYT = () => ready && !failed;
   fallback.onChange(() => { if (!useYT()) emit(); });
 
+  let loaded = false;
   function load() {
+    if (loaded) return; loaded = true;
     if (!box || q.get('yt') === 'off') { failed = true; return; }
     const prev = window.onYouTubeIframeAPIReady;
     window.onYouTubeIframeAPIReady = () => {
@@ -33,9 +35,9 @@ export function createYTMusic(fallback, box) {
       player = new window.YT.Player(box.querySelector('.yt-frame'), {
         width: 200, height: 200, videoId: list ? undefined : video, playerVars: vars,
         events: {
-          onReady: () => { ready = true; try { player.setVolume(70); } catch { /* */ } emit(); if (wantPlay) api.start(); },
+          onReady: () => { ready = true; try { player.setVolume(70); } catch { /* */ } emit(); if (wantPlay) { box.hidden = false; try { player.playVideo(); } catch { /* */ } } },
           onStateChange: (e) => {
-            const YT = window.YT.PlayerState; playing = e.data === YT.PLAYING || e.data === YT.BUFFERING; if (e.data === YT.PLAYING) errs = 0;
+            const YT = window.YT.PlayerState; playing = e.data === YT.PLAYING || e.data === YT.BUFFERING; if (e.data === YT.PLAYING) { errs = 0; if (fallback.playing) fallback.stop(); if (!wantPlay) player.pauseVideo(); }
             try { const t = player.getVideoData()?.title; if (t) title = t; } catch { /* */ }
             if (e.data === YT.ENDED && videos.length === 1 && !list) { player.seekTo(0); player.playVideo(); }
             emit();
@@ -50,18 +52,23 @@ export function createYTMusic(fallback, box) {
     const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; s.async = true;
     s.onerror = () => { failed = true; emit(); };
     document.head.appendChild(s);
-    setTimeout(() => { if (!ready) { failed = true; if (wantPlay && !fallback.playing) fallback.start(); emit(); } }, 12000);   // 막힌 곳이면 원래 음악으로
+    setTimeout(() => { if (!ready && wantPlay && !fallback.playing) fallback.start(); emit(); }, 12000);   /* S12: 느린 망이면 그동안 원래 음악, 유튜브가 늦게라도 준비되면 이어서 씀 */
   }
 
   const api = {
-    start() { wantPlay = true; if (useYT()) { box.hidden = false; fallback.stop(); player.playVideo(); playing = true; emit(); } else fallback.start(); },
-    stop() { wantPlay = false; if (useYT()) { player.pauseVideo(); playing = false; emit(); } fallback.stop(); },
+    /* S12: 유튜브가 실제로 소리를 내기 시작할 때까지 원래 음악을 끊지 않는다 (휴대폰에서 자동재생이 막혀 무음이 되던 문제) */
+    start() { wantPlay = true; load();
+      if (useYT()) { box.hidden = false; try { player.playVideo(); } catch { /* */ } emit();
+        clearTimeout(api._chk); api._chk = setTimeout(() => { if (wantPlay && !playing && !fallback.playing) { fallback.start(); emit(); } }, 2500); }
+      else fallback.start(); },
+    stop() { wantPlay = false; clearTimeout(api._chk); if (useYT()) { try { player.pauseVideo(); } catch { /* */ } playing = false; emit(); } fallback.stop(); },
     hide() { api.stop(); box.hidden = true; },
     next() { if (useYT()) { if (list || videos.length > 1) player.nextVideo(); else player.seekTo(Math.min((player.getCurrentTime() || 0) + 30, (player.getDuration() || 1e9) - 1), true); } else fallback.next(); },
     prev() { if (useYT()) { if (list || videos.length > 1) player.previousVideo(); else player.seekTo(Math.max(0, (player.getCurrentTime() || 0) - 30), true); } else fallback.prev(); },
-    onChange(f) { listeners.add(f); }, get playing() { return useYT() ? playing : fallback.playing; }, get title() { return useYT() ? title : fallback.title; },
-    get source() { return useYT() ? 'youtube' : 'built-in'; }, get single() { return !list && videos.length === 1; },
+    onChange(f) { listeners.add(f); }, get playing() { return (useYT() && playing) || fallback.playing; }, get title() { return useYT() && playing ? title : fallback.playing ? fallback.title : title; },
+    get source() { return useYT() && !fallback.playing ? 'youtube' : 'built-in'; }, get single() { return !list && videos.length === 1; },
   };
-  load();
+  /* S12: 유튜브 플레이어는 무거워서 장면이 다 뜨고 한숨 돌린 뒤(약 5초) 조용히 불러온다 */
+  setTimeout(() => (window.requestIdleCallback || ((f) => setTimeout(f, 1)))(load, { timeout: 4000 }), 5000);
   return api;
 }
